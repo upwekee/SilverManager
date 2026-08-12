@@ -1,0 +1,45 @@
+# Build
+**/bin/
+**/obj/
+dist/
+dist_new/
+publish/
+out/
+*.user
+*.suo
+.vs/
+.idea/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# Local tooling junk (never ship)
+_tmp_*
+_asset-backups/
+node_modules/
+.vite/
+_legacy_electron/
+
+# Design scratch / screenshots (keep app Assets only)
+design/
+designconcept.png
+"Frame 27.png"
+"Frame 27 (1).png"
+*.jpg
+!SteamVault/Assets/**
+
+# Local secrets / runtime data (if ever dropped in repo root)
+**/settings.json
+**/*.maFile
+**/*.mafile
+**/accounts.json
+**/groups.json
+**/inventory-cache/
+
+
+
+_preview/
+/silvermanager-hero.png

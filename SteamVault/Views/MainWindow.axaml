@@ -1,0 +1,2213 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SteamVault.ViewModels"
+        xmlns:models="using:SteamVault.Models"
+        xmlns:svc="using:SteamVault.Services"
+        xmlns:conv="using:SteamVault.Converters"
+        xmlns:ctrl="using:SteamVault.Controls"
+        xmlns:ail="using:AsyncImageLoader"
+        xmlns:svg="using:Avalonia.Svg.Skia"
+        x:Class="SteamVault.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="SilverManager" Width="1400" Height="900" MinWidth="1080" MinHeight="720"
+        Background="#0A0A0B">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <ctrl:AmbientBackdrop Grid.RowSpan="3" />
+
+    <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ TOP BAR в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+    <!-- Casts downward over the content so the chrome sits above the page, not beside it -->
+    <Border Background="#E60D0D0F" BorderBrush="#1F1F24" BorderThickness="0,0,0,1" Padding="18,12" ZIndex="5"
+            BoxShadow="0 8 24 -8 #66000000">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+          <Border Width="32" Height="32" CornerRadius="9" Background="#1E1E22" BorderBrush="#35353D" BorderThickness="1" ClipToBounds="True">
+            <Image Source="avares://SilverManager/Assets/silvermanager-logo.png" Stretch="Uniform" Margin="3"/>
+          </Border>
+          <StackPanel VerticalAlignment="Center" Spacing="1">
+            <TextBlock Text="SilverManager" FontSize="14" FontWeight="Bold" Foreground="#FAFAFA" LetterSpacing="-0.2"/>
+            <TextBlock Text="{Binding Ui.AppTagline}" FontSize="8" FontWeight="SemiBold" Foreground="#6C6C75" LetterSpacing="1.2"/>
+          </StackPanel>
+        </StackPanel>
+
+        <TextBlock Grid.Column="1" Text="{Binding StatusBanner}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   FontSize="11" Foreground="#6C6C75" TextTrimming="CharacterEllipsis" MaxWidth="460"/>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Classes="chip accent" IsVisible="{Binding SelectedAccountCount, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+            <TextBlock Text="{Binding ChipAccCount}" Foreground="#D8D8DE" FontSize="11" FontWeight="SemiBold"/>
+          </Border>
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding QueueRunning}">
+            <TextBlock Text="{Binding QueueProgressText}" Foreground="#A2A2A9" FontSize="11" VerticalAlignment="Center"/>
+            <Button Classes="ghost" Content="{Binding Ui.BtnPause}" Command="{Binding PauseQueueCommand}" IsVisible="{Binding !QueuePaused}" Padding="11,6"/>
+            <Button Classes="accent" Content="{Binding Ui.BtnResume}" Command="{Binding ResumeQueueCommand}" IsVisible="{Binding QueuePaused}" Padding="11,6"/>
+            <Button Classes="danger" Content="{Binding Ui.BtnStop}" Command="{Binding CancelQueueCommand}" Padding="11,6"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="228,*">
+      <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ RAIL в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+      <Border Background="#CC0D0D0F" BorderBrush="#1F1F24" BorderThickness="0,0,1,0" Padding="10,14"
+              ZIndex="4" BoxShadow="8 0 28 -12 #59000000">
+        <DockPanel>
+          <!-- Portfolio card + settings pinned to the bottom -->
+          <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="2,14,2,0">
+            <Border Background="{StaticResource SheenPanel}" BorderBrush="#26262C" BorderThickness="1" CornerRadius="13" Padding="13,12"
+                    BoxShadow="0 -1 0 0 #0FFFFFFF, 0 10 24 -14 #B0000000">
+              <StackPanel Spacing="7">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Ui.LabelPortfolio}" Classes="label"/>
+                  <Ellipse Grid.Column="1" Width="6" Height="6" Fill="#FFFFFF" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Text="{Binding TotalPortfolio, Converter={x:Static conv:AppConverters.Money}}"
+                           FontSize="21" FontWeight="Bold" Foreground="#FAFAFA" LetterSpacing="-0.6"/>
+                <ProgressBar Minimum="0" Maximum="{Binding Accounts.Count}" Value="{Binding ScannedAccountCount}" Height="4"/>
+                <TextBlock Text="{Binding ChipScannedCount}" Classes="hint"/>
+              </StackPanel>
+            </Border>
+            <Button Classes="rail" Command="{Binding GoSettingsCommand}">
+              <Grid ColumnDefinitions="Auto,Auto,*">
+                <Border Classes="indicator" Height="18"/>
+                <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoSettings}" Margin="11,0,11,0"/>
+                <TextBlock Grid.Column="2" Text="{Binding Ui.NavSettings}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+              </Grid>
+            </Button>
+            <Button Classes="rail" Command="{Binding ToggleLanguageCommand}" Margin="0,4,0,0">
+              <Grid ColumnDefinitions="Auto,Auto,*">
+                <Border Classes="indicator" Height="18"/>
+                <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoLanguage}" Margin="11,0,11,0"/>
+                <TextBlock Grid.Column="2" Text="{Binding Ui.LanguageToggle}" VerticalAlignment="Center" Margin="0,10,10,10" FontSize="12"/>
+              </Grid>
+            </Button>
+          </StackPanel>
+
+          <ScrollViewer>
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Ui.LabelOperate}" Classes="label" Margin="13,2,0,7"/>
+
+              <Button x:Name="RailHome" Classes="rail" Command="{Binding GoHomeCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoOverview}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavOverview}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailAccounts" Classes="rail" Command="{Binding GoAccountsCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoAccounts}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavAccounts}" VerticalAlignment="Center" Margin="0,10,6,10"/>
+                  <TextBlock Grid.Column="3" Text="{Binding Accounts.Count}" Classes="hint" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailInv" Classes="rail" Command="{Binding GoInventoryCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoInventory}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavInventory}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailTransfer" Classes="rail" Command="{Binding GoTransferCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoTransfer}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavTransfer}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+
+              <TextBlock Text="{Binding Ui.LabelAnalyse}" Classes="label" Margin="13,16,0,7"/>
+              <Button x:Name="RailStats" Classes="rail" Command="{Binding GoStatsCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoStats}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavStats}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailGroups" Classes="rail" Command="{Binding GoGroupsCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoGroups}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavGroups}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailHwid" Classes="rail" Command="{Binding GoHwidCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoHwid}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavHwid}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailProxy" Classes="rail" Command="{Binding GoProxyCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoProxy}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavProxy}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+              <Button x:Name="RailAutoFarm" Classes="rail" Command="{Binding GoAutoFarmCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoMonke}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavAutoFarm}" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
+
+              <Button Classes="rail" Margin="0,16,0,2" Command="{Binding ToggleAdvancedNavCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoAudit}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Ui.NavMore}" VerticalAlignment="Center" Margin="0,10,6,10"/>
+                  <TextBlock Grid.Column="3" Text="{Binding AdvancedNavOpen, Converter={x:Static conv:AppConverters.AdvancedChevron}}"
+                             Foreground="#6C6C75" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                </Grid>
+              </Button>
+              <StackPanel Spacing="1" IsVisible="{Binding AdvancedNavOpen}">
+                <Button x:Name="RailConf" Classes="rail" Command="{Binding GoConfirmationsCommand}">
+                  <Grid ColumnDefinitions="Auto,Auto,*">
+                    <Border Classes="indicator"/>
+                    <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoConfirm}" Margin="11,0,11,0" Width="14" Height="14"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Ui.NavConfirm}" FontSize="12" VerticalAlignment="Center" Margin="0,9,10,9"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="RailIn" Classes="rail" Command="{Binding GoIncomingCommand}">
+                  <Grid ColumnDefinitions="Auto,Auto,*">
+                    <Border Classes="indicator"/>
+                    <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoIncoming}" Margin="11,0,11,0" Width="14" Height="14"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Ui.NavIncoming}" FontSize="12" VerticalAlignment="Center" Margin="0,9,10,9"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="RailReview" Classes="rail" Command="{Binding GoReviewCommand}">
+                  <Grid ColumnDefinitions="Auto,Auto,*">
+                    <Border Classes="indicator"/>
+                    <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoReview}" Margin="11,0,11,0" Width="14" Height="14"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Ui.NavReview}" FontSize="12" VerticalAlignment="Center" Margin="0,9,10,9"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="RailAudit" Classes="rail" Command="{Binding GoAuditCommand}">
+                  <Grid ColumnDefinitions="Auto,Auto,*">
+                    <Border Classes="indicator"/>
+                    <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoAudit}" Margin="11,0,11,0" Width="14" Height="14"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Ui.NavAudit}" FontSize="12" VerticalAlignment="Center" Margin="0,9,10,9"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+      <Panel Grid.Column="1">
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ OVERVIEW в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <ScrollViewer IsVisible="{Binding IsHome}">
+          <StackPanel Margin="30,24,30,30" Spacing="18" MaxWidth="1140">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroOverview}" Classes="hero"/>
+                <TextBlock Text="{Binding HomeHealthLine}" Classes="sub"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="ghost" Content="{Binding Ui.BtnImport}" Command="{Binding OpenImportCommand}"/>
+                <Button Classes="accent" Content="{Binding Ui.BtnScan}" Command="{Binding ScanAllAccountsCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="{Binding Ui.TipScanAll}"/>
+              </StackPanel>
+            </Grid>
+
+            <!-- Proxy nudge: many accounts on one IP is the usual source of scan/trade errors. -->
+            <Border Classes="glass" Padding="14" IsVisible="{Binding ShowProxyRecommendation}" BorderBrush="#35353D">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Ellipse Width="8" Height="8" Fill="#C9C9CF" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2">
+                  <TextBlock Text="{Binding Ui.HintProxiesRec}" FontSize="13" FontWeight="SemiBold" Foreground="#FAFAFA"/>
+                  <TextBlock Text="{Binding ProxyRecommendationBanner}" Classes="hint" TextWrapping="Wrap"/>
+                </StackPanel>
+                <Button Grid.Column="2" Classes="accent" Content="{Binding Ui.BtnOpenProxy}" Command="{Binding GoProxyCommand}"
+                        VerticalAlignment="Center" Padding="14,8"/>
+              </Grid>
+            </Border>
+
+            <!-- KPI row. Portfolio is wider and lit: it is the number the app exists for,
+                 and it carries its own trend line so the value has a direction. -->
+            <Grid ColumnDefinitions="1.55*,*,*,*">
+              <Border Classes="stat hero" Margin="0,0,12,0">
+                <DockPanel>
+                  <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto">
+                    <Border Classes="staticon">
+                      <Path Classes="glyph" Data="{StaticResource IcoMoney}" Width="17" Height="17" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelPortfolio}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    <Border Grid.Column="2" Classes="chip" VerticalAlignment="Center" Padding="9,4">
+                      <TextBlock Text="{Binding PortfolioDeltaText}" FontSize="11" FontWeight="SemiBold"
+                                 Foreground="{Binding PortfolioDeltaColor, Converter={x:Static conv:AppConverters.HexBrush}}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                  </Grid>
+                  <!-- Trend sits at the floor of the tile so the number reads first.
+                       No axis: at this size gridlines are noise, the shape is the message. -->
+                  <ctrl:Sparkline DockPanel.Dock="Bottom" Points="{Binding PortfolioBars}" ShowAxis="False"
+                                  Height="54" Margin="0,8,0,0"/>
+                  <TextBlock Text="{Binding TotalPortfolio, Converter={x:Static conv:AppConverters.Money}}"
+                             Classes="metric money" FontSize="32" FontWeight="Bold" LetterSpacing="-1"
+                             VerticalAlignment="Center" Margin="0,12,0,0"/>
+                </DockPanel>
+              </Border>
+
+              <Border Grid.Column="1" Classes="stat" Margin="0,0,12,0">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon" Background="#1E1E22" BorderBrush="#35353D">
+                      <Path Classes="glyph" Data="{StaticResource IcoCase}" Width="17" Height="17" Fill="#FFFFFF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelItems}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding StatsLiveItems}" Classes="metric"/>
+                    <TextBlock Text="{Binding HomeItemsLine}" Classes="hint"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Grid.Column="2" Classes="stat" Margin="0,0,12,0">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon" Background="#1E1E22" BorderBrush="#35353D">
+                      <Path Classes="glyph" Data="{StaticResource IcoAccounts}" Width="17" Height="17" Fill="#A2A2A9" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelScanned}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <StackPanel Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                      <TextBlock Text="{Binding ScannedAccountCount}" Classes="metric"/>
+                      <TextBlock Text="/" FontSize="16" FontWeight="Bold" Foreground="#33333A" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                      <TextBlock Text="{Binding Accounts.Count}" FontSize="16" FontWeight="Bold" Foreground="#6C6C75" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding HomeScanDetail}" Classes="hint"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Grid.Column="3" Classes="stat">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon" Background="#1E1E22" BorderBrush="#35353D">
+                      <Path Classes="glyph" Data="{StaticResource IcoAlert}" Width="17" Height="17" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelIssues}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding AttentionCount}" Classes="metric"/>
+                    <TextBlock Text="{Binding HomeAttentionDetail}" Classes="hint"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <!-- Top skins -->
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Ui.LabelTopSkins}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.LabelTopSkinsHint}" Classes="hint"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnOpenInventory}" Command="{Binding GoInventoryCommand}" Padding="12,7"/>
+                </Grid>
+                <TextBlock Text="{Binding Ui.HintScanSkins}" Foreground="#6C6C75" FontSize="12" HorizontalAlignment="Center" Padding="0,20"
+                           IsVisible="{Binding HomeTopSkins.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                <ItemsControl ItemsSource="{Binding HomeTopSkins}" IsVisible="{Binding HomeTopSkins.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:PortfolioItemRow">
+                      <Border Classes="home-skin" Width="158" Margin="0,0,10,10">
+                        <StackPanel>
+                          <Panel Height="94">
+                            <Border Background="#0A0A0B" CornerRadius="11,11,0,0" ClipToBounds="True">
+                              <ail:AdvancedImage Source="{Binding ImageUrl}" Stretch="Uniform" StretchDirection="DownOnly" Margin="10"/>
+                            </Border>
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,7,7,0"
+                                    Background="#D90A0A0B" BorderBrush="#2C2C33" BorderThickness="1" CornerRadius="7" Padding="7,3">
+                              <TextBlock Text="{Binding ValueText}" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                            </Border>
+                            <Border Height="3" VerticalAlignment="Bottom"
+                                    Background="{Binding RarityAccentSource, Converter={x:Static conv:AppConverters.RarityAccent}}"/>
+                          </Panel>
+                          <TextBlock Text="{Binding Name}" Margin="10,8,10,10" FontSize="11" FontWeight="SemiBold"
+                                     TextTrimming="CharacterEllipsis" MaxLines="2" MinHeight="30" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+
+            <!-- Breakdown + top accounts -->
+            <Grid ColumnDefinitions="1.35*,*">
+              <Border Classes="glass" Padding="18" Margin="0,0,12,0" MinHeight="230">
+                <DockPanel>
+                  <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Ui.LabelByCount}" Classes="panel-title"/>
+                      <TextBlock Text="{Binding Ui.LabelByCountHint}" Classes="hint"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Classes="chip" VerticalAlignment="Center" Padding="10,4">
+                      <TextBlock Text="{Binding HomeItemsLine}" FontSize="11" Foreground="#A2A2A9"/>
+                    </Border>
+                  </Grid>
+                  <TextBlock Text="{Binding Ui.LabelNoData}" Foreground="#6C6C75" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsVisible="{Binding HomeCountStats.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                  <Grid ColumnDefinitions="164,*" IsVisible="{Binding HomeCountStats.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+                    <ctrl:SimpleDonutChart Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Slices="{Binding HomeCountStats}"
+                                           CenterTop="{Binding HomeDonutCenterTop}" CenterBottom="{Binding Ui.LabelDonutItems}"/>
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding HomeCountStats}" Margin="14,0,0,0">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:PortfolioItemRow">
+                          <!-- Thumbnail carries a rarity edge; the share bar sits under the name so
+                               the eye reads proportion without hunting for a number. -->
+                          <Border Classes="item" Padding="8" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                              <Panel Width="38" Height="38" VerticalAlignment="Center">
+                                <Border Background="#0A0A0B" BorderBrush="#26262C" BorderThickness="1"
+                                        CornerRadius="9" ClipToBounds="True">
+                                  <ail:AdvancedImage Source="{Binding ImageUrl}" Stretch="Uniform"
+                                                     StretchDirection="DownOnly" Margin="3"/>
+                                </Border>
+                                <Border Height="2" VerticalAlignment="Bottom" Margin="6,0,6,1" CornerRadius="1"
+                                        Background="{Binding Color, Converter={x:Static conv:AppConverters.HexBrush}}"/>
+                              </Panel>
+                              <StackPanel Grid.Column="1" Spacing="5" Margin="11,0,10,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <Panel Height="4">
+                                  <Border Background="#1B1B1F" CornerRadius="2"/>
+                                  <Border HorizontalAlignment="Left" CornerRadius="2"
+                                          Background="{Binding Color, Converter={x:Static conv:AppConverters.HexBrush}}"
+                                          Width="{Binding BarRatio, Converter={x:Static conv:AppConverters.RatioToWidth}, ConverterParameter=190}"/>
+                                </Panel>
+                              </StackPanel>
+                              <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" MinWidth="46">
+                                <TextBlock Text="{Binding Count}" FontSize="14" FontWeight="Bold"
+                                           TextAlignment="Right" LetterSpacing="-0.3"/>
+                                <TextBlock Text="{Binding PercentText}" FontSize="10" Foreground="#6C6C75" TextAlignment="Right"/>
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </DockPanel>
+              </Border>
+              <Border Grid.Column="1" Classes="glass" Padding="16" MinHeight="230">
+                <DockPanel>
+                  <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Ui.LabelTopAccounts}" Classes="panel-title" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnAll}" Command="{Binding GoAccountsCommand}" Padding="10,5"/>
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding HomeTopAccounts}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:SteamAccount">
+                        <Border Classes="item" Padding="12,10" Margin="0,0,0,7" PointerPressed="OnAccountPressed">
+                          <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2">
+                              <TextBlock Text="{Binding Login}" FontWeight="SemiBold" FontSize="12"/>
+                              <TextBlock Text="{Binding Readiness}" FontSize="10"
+                                         Foreground="{Binding Readiness, Converter={x:Static conv:AppConverters.ReadinessBrush}}"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding InventoryValue, Converter={x:Static conv:AppConverters.Money}}"
+                                       Classes="money" FontSize="12" VerticalAlignment="Center"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </DockPanel>
+              </Border>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ ACCOUNTS (virtualized list вЂ” DockPanel so ListBox owns scrolling) в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <DockPanel IsVisible="{Binding IsAccounts}" Margin="24,20,24,12">
+          <StackPanel DockPanel.Dock="Top" Spacing="14" HorizontalAlignment="Stretch">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroAccounts}" Classes="hero"/>
+                <TextBlock Text="{Binding AccountsSubtitle}" Classes="sub"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="ghost" Content="{Binding Ui.BtnImport}" Command="{Binding OpenImportCommand}"/>
+                <Button Classes="ghost" Content="{Binding Ui.BtnScanSelected}" Command="{Binding ScanSelectedAccountsCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="{Binding Ui.TipScanSelected}"/>
+                <Button Classes="accent" Content="{Binding Ui.BtnScan}" Command="{Binding ScanAllAccountsCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="{Binding Ui.TipScanAll}"/>
+              </StackPanel>
+            </Grid>
+
+            <!-- Selection + groups вЂ” collapsible so the account list gets more height on small screens -->
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Ui.LabelGroupsPanel}" Classes="panel-title" VerticalAlignment="Center"/>
+                    <Border Classes="chip accent" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding ChipSelectedCount}" Foreground="#D8D8DE" FontSize="11" FontWeight="SemiBold"/>
+                    </Border>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,8,0">
+                    <Button Classes="primary" Content="{Binding Ui.BtnSelectAll}" Command="{Binding SelectAllAccountsCommand}" Padding="12,7"/>
+                    <Button Classes="ghost" Content="{Binding Ui.BtnClear}" Command="{Binding ClearAccountSelectionCommand}" Padding="12,7"/>
+                    <Button Classes="ghost" Content="{Binding Ui.BtnSetWarehouse}" Command="{Binding MarkWarehouseCommand}" Padding="12,7"
+                            ToolTip.Tip="{Binding Ui.TipWarehouseGlobal}"/>
+                    <Button Classes="danger" Content="{Binding Ui.BtnDeleteVac}" Command="{Binding RemoveVacAccountsCommand}" Padding="12,7"
+                            ToolTip.Tip="{Binding Ui.TipDeleteVac}"/>
+                  </StackPanel>
+                  <Button Grid.Column="2" Classes="ghost" Content="{Binding AccountGroupsPanelToggleLabel}"
+                          Command="{Binding ToggleAccountGroupsPanelCommand}" Padding="12,7"/>
+                </Grid>
+
+                <StackPanel Spacing="14" IsVisible="{Binding AccountGroupsPanelExpanded}">
+                  <Border Classes="divider"/>
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Text="{Binding Ui.LabelSelectGroup}" Classes="label" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Ui.LabelClickClear}" Classes="hint" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding AccountGroups}">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:AccountGroup">
+                          <Button Classes="ghost" Padding="11,6" Margin="0,0,6,6"
+                                  Command="{Binding DataContext.SelectAccountGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"
+                                  Classes.active="{Binding IsSelectedGroup}">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                              <Border Width="7" Height="7" CornerRadius="3" VerticalAlignment="Center"
+                                      Background="{Binding Color, Converter={x:Static conv:AppConverters.HexBrush}}"/>
+                              <TextBlock Text="{Binding Name}" FontSize="12"/>
+                              <TextBlock Text="{Binding AccountCountText}" FontSize="11" Foreground="#6C6C75"/>
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding Ui.HintNoGroups}" Classes="hint"
+                               IsVisible="{Binding AccountGroups.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                  </StackPanel>
+                  <Grid ColumnDefinitions="*,*,Auto">
+                    <TextBox Classes="field" Text="{Binding NewGroupName}" Watermark="{Binding Ui.WatermarkNewGroup}"/>
+                    <TextBox Grid.Column="1" Classes="field" Text="{Binding NewGroupTradeUrl}" Watermark="{Binding Ui.WatermarkTradeOptional}" Margin="8,0"/>
+                    <Button Grid.Column="2" Classes="ghost" Content="{Binding Ui.BtnCreateGroup}" Command="{Binding CreateAccountGroupCommand}" Margin="8,0,0,0"/>
+                  </Grid>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Classes="field" Text="{Binding AccountFilter}" Watermark="{Binding Ui.WatermarkSearchAccounts}"/>
+              <Border Grid.Column="1" Classes="segment" Margin="10,0,0,0">
+                <StackPanel Orientation="Horizontal">
+                  <Button Classes="pill" Content="{Binding Ui.BtnAll}" Command="{Binding SetAccountQuickFilterCommand}" CommandParameter="All"
+                          Classes.active="{Binding AccountQuickFilter, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=All}"/>
+                  <Button Classes="pill" Content="{Binding Ui.BtnReady}" Command="{Binding SetAccountQuickFilterCommand}" CommandParameter="Ready"
+                          Classes.active="{Binding AccountQuickFilter, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=Ready}"/>
+                  <Button Classes="pill" Content="{Binding Ui.BtnIssues}" Command="{Binding SetAccountQuickFilterCommand}" CommandParameter="Attention"
+                          Classes.active="{Binding AccountQuickFilter, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=Attention}"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Border Classes="glass" Padding="30" IsVisible="{Binding Accounts.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}">
+              <StackPanel Spacing="12" HorizontalAlignment="Center">
+                <Border Width="46" Height="46" CornerRadius="14" Background="#1E1E22" BorderBrush="#35353D" BorderThickness="1" HorizontalAlignment="Center">
+                  <Path Classes="glyph" Data="{StaticResource IcoAccounts}" Width="21" Height="21" Fill="#EDEDF0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="{Binding Ui.HintNoAccounts}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding Ui.HintImportStart}" Classes="hint" HorizontalAlignment="Center"/>
+                <Button Classes="accent" Content="{Binding Ui.BtnImportAccounts}" Command="{Binding OpenImportCommand}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+              </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="Auto,Auto,*,140,100,100,120" Margin="12,2,12,6"
+                  IsVisible="{Binding Accounts.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+              <TextBlock/><Panel Grid.Column="1" Width="34" Margin="8,0,0,0"/>
+              <TextBlock Grid.Column="2" Text="{Binding Ui.LabelAccountCol}" Classes="label" Margin="11,0,0,0"/>
+              <TextBlock Grid.Column="3" Text="{Binding Ui.LabelGroupCol}" Classes="label"/>
+              <TextBlock Grid.Column="4" Text="{Binding Ui.LabelStatusCol}" Classes="label"/>
+              <TextBlock Grid.Column="5" Text="{Binding Ui.LabelValueCol}" Classes="label" TextAlignment="Right" Margin="0,0,14,0"/>
+              <TextBlock Grid.Column="6" Text="{Binding Ui.LabelStateCol}" Classes="label"/>
+            </Grid>
+          </StackPanel>
+
+          <!-- Virtualizing ListBox owns the remaining height вЂ” 1000+ accounts stay smooth. -->
+          <ListBox ItemsSource="{Binding FilteredAccounts}"
+                   IsVisible="{Binding Accounts.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}"
+                   HorizontalAlignment="Stretch"
+                   Background="Transparent" BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="models:SteamAccount">
+                <Border Classes="item" Padding="11,9" PointerPressed="OnAccountPressed"
+                        Background="{Binding IsSelected, Converter={x:Static conv:AppConverters.SelectedBg}}"
+                        BorderBrush="{Binding IsSelected, Converter={x:Static conv:AppConverters.SelectedBorder}}">
+                  <Border.ContextMenu>
+                    <!-- Click handlers in code-behind: Command bindings break inside ContextMenu popup. -->
+                    <ContextMenu>
+                      <MenuItem Header="{Binding DataContext.Ui.CtxSettings, RelativeSource={RelativeSource AncestorType=Window}}" Click="OnCtxSettings"/>
+                      <MenuItem Header="{Binding DataContext.Ui.CtxWarehouse, RelativeSource={RelativeSource AncestorType=Window}}" Click="OnCtxWarehouse"/>
+                      <MenuItem Header="{Binding DataContext.Ui.Ctx2Fa, RelativeSource={RelativeSource AncestorType=Window}}" Click="OnCtxCopy2Fa"/>
+                      <Separator/>
+                      <MenuItem Header="{Binding DataContext.Ui.CtxDelete, RelativeSource={RelativeSource AncestorType=Window}}" Click="OnCtxDelete"/>
+                    </ContextMenu>
+                  </Border.ContextMenu>
+                  <Grid ColumnDefinitions="Auto,Auto,*,140,100,100,120">
+                    <CheckBox IsChecked="{Binding IsSelected}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                    <Panel Grid.Column="1" Width="34" Height="34" Margin="8,0,0,0" VerticalAlignment="Center">
+                      <Border CornerRadius="10" Background="#1E1E22" BorderThickness="1.5"
+                              BorderBrush="{Binding Status, Converter={x:Static conv:AppConverters.StatusToBrush}}"
+                              ClipToBounds="True">
+                        <Panel>
+                          <TextBlock Text="{Binding Initial}" FontSize="14" FontWeight="Bold" Foreground="#C9C9CF"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          <ail:AdvancedImage Source="{Binding AvatarUrl}" Stretch="UniformToFill"
+                                             IsVisible="{Binding HasAvatar}"/>
+                        </Panel>
+                      </Border>
+                    </Panel>
+                    <StackPanel Grid.Column="2" Margin="11,0,10,0" Spacing="2" VerticalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" Spacing="7">
+                        <TextBlock Text="{Binding Login}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                        <Border Background="#1E1E22" BorderBrush="#4A4A55" BorderThickness="1" CornerRadius="6"
+                                Padding="6,1" VerticalAlignment="Center" IsVisible="{Binding IsWarehouse}">
+                          <TextBlock Text="{Binding DataContext.Ui.LabelWarehouseBadge, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="8.5" FontWeight="Bold" Foreground="#EDEDF0" LetterSpacing="0.6"/>
+                        </Border>
+                      </StackPanel>
+                      <TextBlock Text="{Binding PersonaName}" Classes="hint" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="3" Text="{Binding GroupName}" Foreground="#A2A2A9" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                      <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                               Fill="{Binding Status, Converter={x:Static conv:AppConverters.StatusToBrush}}"/>
+                      <TextBlock Text="{Binding Status}" Foreground="#A2A2A9" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="5" Text="{Binding InventoryValue, Converter={x:Static conv:AppConverters.Money}}"
+                               Classes="money" FontSize="12.5" VerticalAlignment="Center"
+                               TextAlignment="Right" Margin="0,0,14,0"/>
+                    <StackPanel Grid.Column="6" Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Readiness}" FontSize="12" FontWeight="SemiBold"
+                                 Foreground="{Binding Readiness, Converter={x:Static conv:AppConverters.ReadinessBrush}}"/>
+                      <TextBlock Text="{Binding DataContext.Ui.HintRmbSettings, RelativeSource={RelativeSource AncestorType=Window}}" Classes="hint" FontSize="9"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ INVENTORY
+             DockPanel: ONLY the last child fills leftover space.
+             Toolbar is Dock=Top. Skins panel is the single fill child (full width + full height). -->
+        <DockPanel IsVisible="{Binding IsInventory}" Margin="12,10,12,8" LastChildFill="True">
+          <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,10">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Ui.HeroInventory}" Classes="hero"/>
+                <TextBlock Text="{Binding InventoryVisibleSubText}" Classes="sub" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Classes="ghost" Content="{Binding Ui.BtnLoad}" Command="{Binding LoadInventoriesCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,7"/>
+                <Button Classes="ghost" Content="{Binding Ui.BtnLoadAll}" Command="{Binding UseAllAccountsCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,7"/>
+                <Button Classes="accent" Content="{Binding Ui.BtnSend}" Command="{Binding OpenTransferReviewCommand}"
+                        IsEnabled="{Binding SelectedItemCount, Converter={x:Static conv:AppConverters.NonZeroToTrue}}" Padding="14,7"/>
+              </StackPanel>
+            </Grid>
+
+            <Border Classes="selection-bar" IsVisible="{Binding SelectedItemCount, Converter={x:Static conv:AppConverters.NonZeroToTrue}}" Padding="10,8">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="#FAFAFA" VerticalAlignment="Center"
+                           Text="{Binding SelectedItemsBarText}" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <Button Classes="ghost" Content="{Binding Ui.BtnSmartSelect}" Command="{Binding SelectBySmartRulesCommand}" Padding="11,6"/>
+                  <Button Classes="accent" Content="{Binding Ui.BtnSendArrow}" Command="{Binding OpenTransferReviewCommand}" Padding="13,6"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+              <TextBox Classes="field" Text="{Binding SearchQuery}" Watermark="{Binding Ui.WatermarkSearchSkins}"/>
+              <Button Grid.Column="1" Classes="ghost" Margin="8,0,0,0" Padding="12,0" MinHeight="36"
+                      Command="{Binding CycleInventorySortCommand}" ToolTip.Tip="{Binding Ui.TipSortInventory}">
+                <TextBlock Text="{Binding InventorySortLabel}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </Button>
+              <Border Grid.Column="2" Classes="segment" Margin="8,0,0,0">
+                <StackPanel Orientation="Horizontal">
+                  <ToggleButton Classes="pill" Content="{Binding Ui.FilterTradable}" IsChecked="{Binding TradableOnly}"/>
+                  <ToggleButton Classes="pill" Content="{Binding Ui.FilterNoHold}" IsChecked="{Binding HideTradeHold}"/>
+                  <ToggleButton Classes="pill" Content="{Binding Ui.FilterCases}" IsChecked="{Binding FilterCasesOnly}"/>
+                </StackPanel>
+              </Border>
+              <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center"
+                          IsVisible="{Binding FilteredItems.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+                <Button Classes="primary" Content="{Binding Ui.BtnAll}" Command="{Binding SelectAllVisibleCommand}" Padding="12,7"/>
+                <TextBlock Text="{Binding FilteredItems.Count, StringFormat={}{0}}" Classes="hint" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Grid>
+
+            <Border Classes="glass" Padding="10,8"
+                    IsVisible="{Binding HiddenByFilterCount, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Ellipse Width="7" Height="7" Fill="#C9C9CF" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Margin="10,0,0,0" FontSize="12" Foreground="#A2A2A9" VerticalAlignment="Center"
+                           Text="{Binding HiddenFiltersText}"/>
+                <Button Grid.Column="2" Classes="ghost" Content="{Binding Ui.BtnShowAll}" Command="{Binding ClearInventoryFiltersCommand}" Padding="12,6"/>
+              </Grid>
+            </Border>
+            <Border Classes="glass" Padding="10,8" IsVisible="{Binding HasDeadWeight}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Ellipse Width="7" Height="7" Fill="#6C6C75" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Margin="10,0,0,0" FontSize="12" Foreground="#A2A2A9" VerticalAlignment="Center"
+                           Text="{Binding DeadWeightHint}"/>
+                <CheckBox Grid.Column="2" Content="{Binding Ui.HintShowCount}" IsChecked="{Binding Settings.CountNonTradable}" FontSize="12"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+
+          <!-- SINGLE fill child: takes ALL remaining height and width under the toolbar -->
+          <Border Classes="glass" Padding="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Panel HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+              <!-- Empty state -->
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                          IsVisible="{Binding FilteredItems.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}">
+                <Border Width="52" Height="52" CornerRadius="14" Background="#1E1E22" BorderBrush="#35353D" BorderThickness="1" HorizontalAlignment="Center">
+                  <Path Classes="glyph" Data="{StaticResource IcoInventory}" Width="24" Height="24" Fill="#EDEDF0"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="{Binding InventoryEmptyTitle}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding InventoryEmptyHint}" Classes="hint" HorizontalAlignment="Center" TextAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                  <Button Classes="ghost" Content="{Binding Ui.BtnClearFilters}" Command="{Binding ClearInventoryFiltersCommand}"/>
+                  <Button Classes="accent" Content="{Binding Ui.BtnLoadAllAccounts}" Command="{Binding UseAllAccountsCommand}" IsEnabled="{Binding !IsBusy}"/>
+                </StackPanel>
+              </StackPanel>
+
+              <!-- GRID only -->
+              <ScrollViewer IsVisible="{Binding FilteredItems.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                            HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding FilteredItems}" Margin="4">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:InventoryItem">
+                      <Border Classes="item" Width="210" Margin="0,0,12,12" Padding="0" PointerPressed="OnItemPressed" ClipToBounds="True"
+                              Background="{Binding IsSelected, Converter={x:Static conv:AppConverters.SelectedBg}}"
+                              BorderBrush="{Binding IsSelected, Converter={x:Static conv:AppConverters.SelectedBorder}}">
+                        <StackPanel>
+                          <Panel Height="120">
+                            <Border Background="#0A0A0B" CornerRadius="11,11,0,0" ClipToBounds="True">
+                              <ail:AdvancedImage Source="{Binding ImageUrl}" Stretch="Uniform" StretchDirection="DownOnly" Margin="10"/>
+                            </Border>
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"
+                                    Background="#D90A0A0B" BorderBrush="#2C2C33" BorderThickness="1" CornerRadius="7" Padding="8,3">
+                              <TextBlock Text="{Binding Price, Converter={x:Static conv:AppConverters.Money}}" FontSize="12" FontWeight="Bold" Foreground="#FFFFFF"/>
+                            </Border>
+                            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,8,0,0"
+                                    Background="#CC151517" BorderBrush="#2C2C33" BorderThickness="1" CornerRadius="6" Padding="6,2"
+                                    IsVisible="{Binding QualityText, Converter={x:Static conv:AppConverters.StringNotEmpty}}">
+                              <TextBlock Text="{Binding QualityText}" FontSize="10" FontWeight="SemiBold" Foreground="#A2A2A9"/>
+                            </Border>
+                            <Border Height="3" VerticalAlignment="Bottom"
+                                    Background="{Binding RarityAccentSource, Converter={x:Static conv:AppConverters.RarityAccent}}"/>
+                          </Panel>
+                          <StackPanel Margin="12,10,12,12" Spacing="5">
+                            <TextBlock Text="{Binding MarketHashName}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       MaxLines="2" MinHeight="32" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Exterior}" FontSize="11" Foreground="#6C6C75" TextTrimming="CharacterEllipsis"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock Text="{Binding AccountLogin}" FontSize="11" Foreground="#6C6C75" TextTrimming="CharacterEllipsis"/>
+                              <TextBlock Grid.Column="1" Text="{Binding HoldText}" FontSize="11" Foreground="#6C6C75"/>
+                            </Grid>
+                          </StackPanel>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Panel>
+          </Border>
+        </DockPanel>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ TRANSFER вЂ” sources + destination on one page в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <DockPanel IsVisible="{Binding IsTransfer}" Margin="24,20,24,12">
+          <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,14">
+            <TextBlock Text="{Binding Ui.HeroTransfer}" Classes="hero"/>
+            <TextBlock Text="{Binding Ui.SubTransferHint}" Classes="sub"/>
+          </StackPanel>
+
+          <Grid ColumnDefinitions="1.1*,*">
+            <!-- LEFT: source accounts -->
+            <Border Classes="glass" Padding="14" Margin="0,0,12,0">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+                  <TextBlock Text="{Binding Ui.LabelSources}" Classes="panel-title"/>
+                  <TextBlock Text="{Binding Ui.HintSources}" Classes="hint" TextWrapping="Wrap"/>
+                  <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                    <TextBox Classes="field" Text="{Binding AccountFilter}" Watermark="{Binding Ui.WatermarkFilterSources}"/>
+                    <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnAllSources}" Margin="8,0,0,0" Padding="12,7"
+                            Command="{Binding SelectAllSourcesForTransferCommand}"/>
+                    <Button Grid.Column="2" Classes="ghost" Content="{Binding Ui.BtnClear}" Margin="6,0,0,0" Padding="12,7"
+                            Command="{Binding ClearAccountSelectionCommand}"/>
+                    <Border Grid.Column="3" Classes="chip accent" VerticalAlignment="Center" Margin="8,0,0,0">
+                      <TextBlock Text="{Binding ChipSrcCount}" Foreground="#D8D8DE" FontSize="11" FontWeight="SemiBold"/>
+                    </Border>
+                  </Grid>
+                </StackPanel>
+                <ListBox ItemsSource="{Binding FilteredAccounts}" Background="Transparent" BorderThickness="0">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:SteamAccount">
+                      <Border Classes="item" Padding="10,8" PointerPressed="OnAccountPressed"
+                              Background="{Binding IsSelected, Converter={x:Static conv:AppConverters.SelectedBg}}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <CheckBox IsChecked="{Binding IsSelected}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                          <StackPanel Grid.Column="1" Margin="10,0,8,0" Spacing="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Login}" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding GroupName, TargetNullValue=вЂ”}" Classes="hint" FontSize="10"/>
+                          </StackPanel>
+                          <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding InventoryValue, Converter={x:Static conv:AppConverters.Money}}" Classes="money" FontSize="11"/>
+                            <TextBlock Text="{Binding InventoryCountText}" Classes="hint" FontSize="10" HorizontalAlignment="Right"/>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </Border>
+
+            <!-- RIGHT: destination + send -->
+            <StackPanel Spacing="12">
+              <Border Classes="glass" Padding="16">
+                <StackPanel Spacing="12">
+                  <TextBlock Text="{Binding Ui.LabelDestination}" Classes="panel-title"/>
+
+                  <Border Background="#141416" BorderBrush="#2C2C33" BorderThickness="1" CornerRadius="12" Padding="14">
+                    <StackPanel Spacing="10">
+                      <CheckBox Content="{Binding Ui.HintSendWarehouse}" IsChecked="{Binding Settings.SendToWarehouse}"/>
+                      <TextBlock Text="{Binding Ui.HintPickWarehouse}" Classes="label" IsVisible="{Binding Settings.SendToWarehouse}"/>
+                      <ComboBox Classes="field" IsVisible="{Binding Settings.SendToWarehouse}"
+                                ItemsSource="{Binding TransferWarehouseCandidates}"
+                                SelectedItem="{Binding WarehouseAccount}"
+                                DisplayMemberBinding="{Binding Login}"
+                                MinHeight="38"/>
+                      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Settings.SendToWarehouse}">
+                        <Button Classes="accent" Content="{Binding DataContext.Ui.BtnFetchTradeLink, RelativeSource={RelativeSource AncestorType=Window}}" Padding="12,8"
+                                Command="{Binding FetchWarehouseTradeLinkCommand}" CommandParameter="{Binding WarehouseAccount}"
+                                IsEnabled="{Binding !IsBusy}"
+                                ToolTip.Tip="{Binding Ui.TipFetchWh}"/>
+                        <Button Classes="ghost" Content="{Binding Ui.BtnEditAccount}" Padding="12,8"
+                                Command="{Binding OpenAccountPanelCommand}" CommandParameter="{Binding WarehouseAccount}"/>
+                      </StackPanel>
+                      <TextBlock Text="{Binding WarehouseGuardMessage}" Classes="hint" TextWrapping="Wrap"
+                                 IsVisible="{Binding Settings.SendToWarehouse}"/>
+                    </StackPanel>
+                  </Border>
+
+                  <StackPanel Spacing="8" IsEnabled="{Binding !Settings.SendToWarehouse}">
+                    <TextBlock Text="{Binding Ui.HintOrPaste}" Classes="label"/>
+                    <TextBox Classes="field" Text="{Binding TradeUrl}" AcceptsReturn="False"
+                             Watermark="https://steamcommunity.com/tradeoffer/new/?partner=вЂ¦&amp;token=вЂ¦"/>
+                    <TextBlock Text="{Binding TradePartnerLine}"
+                               Classes="hint"/>
+                    <CheckBox Content="{Binding Ui.HintRouteByGroup}"
+                              IsChecked="{Binding Settings.RouteTradesByGroup}"
+                              ToolTip.Tip="{Binding Ui.TipRouteByGroup}"/>
+                  </StackPanel>
+
+                  <!-- Group в†’ destination map (only when routing by group) -->
+                  <Border Background="#141416" BorderBrush="#2C2C33" BorderThickness="1" CornerRadius="12" Padding="12"
+                          IsVisible="{Binding ShowGroupRouteMap}">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="{Binding Ui.LabelWhereGroups}" Classes="label"/>
+                      <TextBlock Text="{Binding Ui.HintWhereMissing}" Classes="hint" TextWrapping="Wrap" FontSize="11"/>
+                      <ItemsControl ItemsSource="{Binding GroupRouteRows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="models:GroupRouteRow">
+                            <Border Classes="item" Padding="10,8" Margin="0,0,0,5">
+                              <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Width="8" Height="8" CornerRadius="3" VerticalAlignment="Center" Margin="0,0,10,0"
+                                        Background="{Binding Color, Converter={x:Static conv:AppConverters.HexBrush}}"/>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                  <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding GroupName}" FontSize="12" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding AccountCountText}" Classes="hint" FontSize="11"/>
+                                  </StackPanel>
+                                  <TextBlock Text="{Binding Destination}" FontSize="11" Foreground="#C9C9CF" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding Status}" FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0"
+                                           Foreground="{Binding IsReady, Converter={x:Static conv:AppConverters.ReadyStatusBrush}}"/>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="{Binding Ui.HintNoGroupsPage}" Classes="hint"
+                                 IsVisible="{Binding GroupRouteRows.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                      <Button Classes="ghost" Content="{Binding Ui.BtnOpenGroups}" HorizontalAlignment="Left" Padding="12,6"
+                              Command="{Binding GoGroupsCommand}"/>
+                    </StackPanel>
+                  </Border>
+
+                  <Border Classes="divider"/>
+                  <TextBlock Text="{Binding RouteSummary}" FontSize="12" FontWeight="SemiBold" Foreground="#C9C9CF"/>
+                  <TextBlock Text="{Binding TradeUrl}" Classes="hint" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                             IsVisible="{Binding TradeUrl, Converter={x:Static conv:AppConverters.StringNotEmpty}}"/>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="glass" Padding="16">
+                <StackPanel Spacing="12">
+                  <TextBlock Text="{Binding Ui.LabelSend}" Classes="panel-title"/>
+                  <TextBlock Text="{Binding SmartRuleSummary}" Classes="hint" TextWrapping="Wrap"/>
+                  <TextBlock Foreground="#C9C9CF" FontSize="12" Text="{Binding TransferSourcesLine}" TextWrapping="Wrap"/>
+                  <Button Classes="accent" Content="{Binding Ui.BtnReviewPlan}" HorizontalAlignment="Stretch"
+                          Command="{Binding PrepareAndSendTransferCommand}" IsEnabled="{Binding !IsBusy}" Padding="16,12"/>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="ghost" Content="{Binding Ui.BtnDryRun}" Command="{Binding DryRunTransferCommand}" IsEnabled="{Binding !IsBusy}"/>
+                    <Button Classes="ghost" Content="{Binding Ui.NavInventory}" Command="{Binding GoInventoryCommand}"/>
+                    <Button Classes="ghost" Content="{Binding Ui.NavConfirm}" Command="{Binding GoConfirmationsCommand}"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Grid>
+        </DockPanel>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ GROUPS (More) в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <ScrollViewer IsVisible="{Binding IsGroups}">
+          <StackPanel Margin="30,24,30,30" Spacing="14" MaxWidth="940">
+            <StackPanel Spacing="3">
+              <TextBlock Text="{Binding Ui.HeroGroups}" Classes="hero"/>
+              <TextBlock Text="{Binding Ui.SubGroups}" Classes="sub"/>
+            </StackPanel>
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="11">
+                <Grid ColumnDefinitions="*,*,Auto">
+                  <TextBox Classes="field" Text="{Binding NewGroupName}" Watermark="{Binding Ui.LabelNameWm}"/>
+                  <TextBox Grid.Column="1" Classes="field" Text="{Binding NewGroupTradeUrl}" Watermark="{Binding Ui.WatermarkTradeOptional}" Margin="8,0"/>
+                  <Button Grid.Column="2" Classes="accent" Content="{Binding Ui.BtnCreate}" Command="{Binding CreateAccountGroupCommand}" Margin="8,0,0,0"/>
+                </Grid>
+                <TextBlock Classes="hint" Text="{Binding Ui.HintCreateGroup}"/>
+              </StackPanel>
+            </Border>
+
+            <!-- Member picker. Opens inline instead of in a dialog so the group's own trade
+                 link stays on screen while accounts are being chosen for it. -->
+            <Border Classes="glass" Padding="18" IsVisible="{Binding IsEditingGroup}">
+              <StackPanel Spacing="13">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="{Binding GroupEditorTitle}" FontSize="15" FontWeight="Bold" Foreground="#FAFAFA"/>
+                    <TextBlock Classes="hint" Text="{Binding StagedMembersHint}"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="ghost" Content="{Binding Ui.BtnToggleAll}" Command="{Binding StageAllGroupMembersCommand}" Padding="12,7"/>
+                    <Button Classes="ghost" Content="{Binding Ui.BtnCancel}" Command="{Binding CloseGroupEditorCommand}" Padding="12,7"/>
+                    <Button Classes="accent" Content="{Binding Ui.BtnSaveMembers}" Command="{Binding SaveGroupMembersCommand}"/>
+                  </StackPanel>
+                </Grid>
+                <TextBox Classes="field" Text="{Binding GroupMemberSearch}" Watermark="{Binding Ui.WatermarkFilterAccounts}"/>
+                <Border Background="#141416" BorderBrush="#2C2C33" BorderThickness="1" CornerRadius="12" MaxHeight="330">
+                  <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding GroupMemberRows}" Margin="6">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:GroupMemberRow">
+                          <Border Padding="10,8" CornerRadius="9" Margin="0,0,0,3"
+                                  Background="{Binding IsMember, Converter={x:Static conv:AppConverters.SelectedBg}}">
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                              <CheckBox IsChecked="{Binding IsMember}" VerticalAlignment="Center"/>
+                              <Border Grid.Column="1" Width="26" Height="26" CornerRadius="8" Margin="4,0,10,0"
+                                      Background="#1E1E22" BorderBrush="#35353D" BorderThickness="1" ClipToBounds="True">
+                                <Panel>
+                                  <TextBlock Text="{Binding Initial}" FontSize="11" FontWeight="Bold" Foreground="#A2A2A9"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                  <ail:AdvancedImage Source="{Binding AvatarUrl}" Stretch="UniformToFill" IsVisible="{Binding HasAvatar}"/>
+                                </Panel>
+                              </Border>
+                              <TextBlock Grid.Column="2" Text="{Binding Login}" FontSize="12" FontWeight="SemiBold"
+                                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                              <Border Grid.Column="3" Background="#1E1E22" BorderBrush="#35353D" BorderThickness="1"
+                                      CornerRadius="6" Padding="7,2" Margin="8,0" IsVisible="{Binding HasOtherGroup}">
+                                <TextBlock Text="{Binding OtherGroup}" FontSize="10" Foreground="#6C6C75"/>
+                              </Border>
+                              <TextBlock Grid.Column="4" Text="{Binding ValueText}" Classes="money" FontSize="11" VerticalAlignment="Center"/>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding AccountGroups}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:AccountGroup">
+                  <Border Classes="glass" Padding="14" Margin="0,0,0,10">
+                    <StackPanel Spacing="0">
+                      <!-- Collapsed header: always visible. Click Expand to manage. -->
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                        <Border Width="10" Height="10" CornerRadius="4" VerticalAlignment="Center" Margin="0,0,12,0"
+                                Background="{Binding Color, Converter={x:Static conv:AppConverters.HexBrush}}"/>
+                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Bold" Foreground="#FAFAFA"/>
+                          <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="{Binding AccountCountText}" Foreground="#A2A2A9" FontSize="12"/>
+                            <TextBlock Text="{Binding PortfolioText}" Classes="money" FontSize="12"/>
+                            <TextBlock Text="{Binding DestinationState}" Classes="hint" FontSize="11"/>
+                          </StackPanel>
+                          <TextBlock Text="{Binding MembersPreview}" Classes="hint" FontSize="11" TextTrimming="CharacterEllipsis"
+                                     IsVisible="{Binding !IsExpanded}"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="ghost" Margin="8,0,0,0" Padding="14,8" VerticalAlignment="Center"
+                                Content="{Binding ExpandToggleLabel}"
+                                Command="{Binding DataContext.ToggleGroupExpandedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}"/>
+                        <Button Grid.Column="3" Classes="danger" Content="{Binding DataContext.Ui.BtnDelete, RelativeSource={RelativeSource AncestorType=Window}}" Margin="6,0,0,0" Padding="12,8" VerticalAlignment="Center"
+                                Command="{Binding DataContext.DeleteAccountGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}"/>
+                      </Grid>
+
+                      <!-- Expanded body -->
+                      <StackPanel Spacing="13" Margin="0,14,0,0" IsVisible="{Binding IsExpanded}">
+                        <Border Classes="divider"/>
+                        <StackPanel Spacing="7">
+                          <TextBlock Text="{Binding DataContext.Ui.LabelName, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
+                          <TextBox Classes="field" Text="{Binding Name}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="7">
+                          <TextBlock Text="{Binding DataContext.Ui.LabelTradeLink, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
+                          <TextBox Classes="field" Text="{Binding TradeUrl}"
+                                   Watermark="https://steamcommunity.com/tradeoffer/new/?partner=вЂ¦&amp;token=вЂ¦"/>
+                          <TextBlock Text="{Binding DestinationState}" Classes="hint" FontSize="10"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                          <TextBlock Text="{Binding DataContext.Ui.LabelMembers, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
+                          <TextBlock Text="{Binding MembersPreview}" Classes="hint" TextWrapping="Wrap"/>
+                          <Button Classes="accent" Content="{Binding DataContext.Ui.BtnAddRemoveAccounts, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Left" Padding="14,8"
+                                  Command="{Binding DataContext.OpenGroupEditorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                          <TextBlock Text="{Binding DataContext.Ui.LabelGroupWh, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
+                          <TextBlock Text="{Binding DataContext.Ui.HintGroupWhAny, RelativeSource={RelativeSource AncestorType=Window}}" Classes="hint" TextWrapping="Wrap" FontSize="11"/>
+                          <ComboBox Classes="field" ItemsSource="{Binding WarehouseOptions}"
+                                    SelectedItem="{Binding SelectedWarehouseOption}"
+                                    DisplayMemberBinding="{Binding Label}"
+                                    MinHeight="40" HorizontalAlignment="Stretch"
+                                    MaxDropDownHeight="360"
+                                    ToolTip.Tip="{Binding DataContext.Ui.TipWhList, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="accent" Content="{Binding DataContext.Ui.BtnApplyWarehouse, RelativeSource={RelativeSource AncestorType=Window}}" Padding="14,8"
+                                    Command="{Binding DataContext.ApplyGroupWarehousePickerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    ToolTip.Tip="{Binding DataContext.Ui.TipApplyWh, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                            <Button Classes="ghost" Content="{Binding DataContext.Ui.BtnFetchTradeLink, RelativeSource={RelativeSource AncestorType=Window}}" Padding="12,8"
+                                    Command="{Binding DataContext.FetchGroupWarehouseTradeLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    ToolTip.Tip="{Binding DataContext.Ui.TipFetchWhUrl, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                            <Button Classes="ghost" Content="{Binding Ui.BtnClear}" Padding="12,8"
+                                    Command="{Binding DataContext.ClearGroupWarehouseCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"/>
+                          </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding InventorySummary}" Classes="hint" FontSize="11"/>
+                        <TextBlock Text="{Binding ProxyCoverage}" Classes="hint" FontSize="11"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Classes="ghost" Content="{Binding Ui.BtnSave}"
+                                  Command="{Binding DataContext.SaveAccountGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                          <Button Classes="primary" Content="{Binding DataContext.Ui.BtnSelect, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  Command="{Binding DataContext.SelectAccountGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                          <Button Classes="soft" Content="{Binding DataContext.Ui.BtnScanShort, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  Command="{Binding DataContext.ScanGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                          <Button Classes="soft" Content="{Binding DataContext.Ui.BtnTransfer, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  Command="{Binding DataContext.TransferGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                        </StackPanel>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ STATS в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <ScrollViewer IsVisible="{Binding IsStats}">
+          <StackPanel Margin="30,24,30,30" Spacing="16" MaxWidth="1140">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroStats}" Classes="hero"/>
+                <TextBlock Text="{Binding Ui.SubStats}" Classes="sub"/>
+              </StackPanel>
+              <Border Grid.Column="1" Classes="segment" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                  <Button Classes="pill" Content="24h" Command="{Binding SetStatsPeriodCommand}" CommandParameter="24h"
+                          Classes.active="{Binding StatsPeriodKey, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=24h}"/>
+                  <Button Classes="pill" Content="7d" Command="{Binding SetStatsPeriodCommand}" CommandParameter="7d"
+                          Classes.active="{Binding StatsPeriodKey, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=7d}"/>
+                  <Button Classes="pill" Content="30d" Command="{Binding SetStatsPeriodCommand}" CommandParameter="30d"
+                          Classes.active="{Binding StatsPeriodKey, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=30d}"/>
+                  <Button Classes="pill" Content="{Binding Ui.BtnAll}" Command="{Binding SetStatsPeriodCommand}" CommandParameter="all"
+                          Classes.active="{Binding StatsPeriodKey, Converter={x:Static conv:StringEqualsConverter.Instance}, ConverterParameter=all}"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <UniformGrid Columns="4">
+              <Border Classes="stat" Margin="0,0,12,0">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon">
+                      <Path Classes="glyph" Data="{StaticResource IcoMoney}" Width="17" Height="17" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelLiveValue}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <TextBlock Text="{Binding StatsLivePortfolio, Converter={x:Static conv:AppConverters.Money}}" Classes="metric"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="stat" Margin="0,0,12,0">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon" Background="#1E1E22" BorderBrush="#35353D">
+                      <Path Classes="glyph" Data="{StaticResource IcoCase}" Width="17" Height="17" Fill="#FFFFFF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelCases}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <TextBlock Text="{Binding StatsCaseCount}" Classes="metric"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="stat" Margin="0,0,12,0">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon" Background="#1E1E22" BorderBrush="#35353D">
+                      <Path Classes="glyph" Data="{StaticResource IcoInventory}" Width="17" Height="17" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelItems}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <TextBlock Text="{Binding StatsLiveItems}" Classes="metric"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="stat">
+                <StackPanel Spacing="11">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Classes="staticon" Background="#1E1E22" BorderBrush="#35353D">
+                      <Path Classes="glyph" Data="{StaticResource IcoUp}" Width="17" Height="17" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Ui.LabelWithdrawn}" Classes="label" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                  </Grid>
+                  <TextBlock Text="{Binding StatsWithdrawnLifetime, Converter={x:Static conv:AppConverters.Money}}" Classes="metric"/>
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+
+            <Border Classes="glass" Padding="18" Height="270">
+              <DockPanel>
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Ui.HintPortfolioTime}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintPerScan}" Classes="hint"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding StatsLivePortfolio, Converter={x:Static conv:AppConverters.Money}}"
+                             Classes="money" FontSize="17" VerticalAlignment="Center"/>
+                </Grid>
+                <ctrl:Sparkline Points="{Binding PortfolioBars}" EndLabel="{Binding StatsPortfolioDeltaText}" MinHeight="150"/>
+              </DockPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*">
+              <Border Classes="glass" Padding="18" Margin="0,0,12,0" Height="240">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Ui.HintPortfolio}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintPerPeriod}" Classes="hint"/>
+                  </StackPanel>
+                  <ctrl:SimpleBarChart Bars="{Binding PortfolioBars}" MinHeight="140"/>
+                </DockPanel>
+              </Border>
+              <Border Grid.Column="1" Classes="glass" Padding="18" Height="240">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Ui.HintTransferVol}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintValueOut}" Classes="hint"/>
+                  </StackPanel>
+                  <ctrl:SimpleBarChart Bars="{Binding VolumeBars}" BarBrush="#C9C9CF" MinHeight="140"/>
+                </DockPanel>
+              </Border>
+            </Grid>
+
+            <!-- Cases + rarity grade counts + top skins -->
+            <Grid ColumnDefinitions="*,*">
+              <Border Classes="glass" Padding="18" Margin="0,0,12,0" MinHeight="280">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Ui.HintCasesCaps}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintByQty}" Classes="hint"/>
+                  </StackPanel>
+                  <TextBlock Text="{Binding Ui.HintScanCases}" Classes="hint" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsVisible="{Binding CaseStats.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                  <ScrollViewer MaxHeight="320" IsVisible="{Binding CaseStats.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+                    <ItemsControl ItemsSource="{Binding CaseStats}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:PortfolioItemRow">
+                          <Border Classes="item" Padding="10,8" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                              <Panel Width="36" Height="36">
+                                <Border Background="#0A0A0B" CornerRadius="8" ClipToBounds="True">
+                                  <ail:AdvancedImage Source="{Binding ImageUrl}" Stretch="Uniform" Margin="2"/>
+                                </Border>
+                              </Panel>
+                              <StackPanel Grid.Column="1" Margin="10,0,10,0" Spacing="3" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <Panel Height="3">
+                                  <Border Background="#1B1B1F" CornerRadius="2"/>
+                                  <Border HorizontalAlignment="Left" CornerRadius="2" Background="#C9C9CF"
+                                          Width="{Binding BarRatio, Converter={x:Static conv:AppConverters.RatioToWidth}, ConverterParameter=160}"/>
+                                </Panel>
+                              </StackPanel>
+                              <StackPanel Grid.Column="2" Spacing="1" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding CountText}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding ValueText}" Classes="money" FontSize="11" HorizontalAlignment="Right"/>
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </DockPanel>
+              </Border>
+
+              <Border Grid.Column="1" Classes="glass" Padding="18" MinHeight="280">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Ui.HintByRarity}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintRarityList}" Classes="hint"/>
+                  </StackPanel>
+                  <TextBlock Text="{Binding Ui.HintNoRarity}" Classes="hint" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsVisible="{Binding QualityStats.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                  <ItemsControl ItemsSource="{Binding QualityStats}"
+                                IsVisible="{Binding QualityStats.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:QualityStatRow">
+                        <Border Classes="item" Padding="10,8" Margin="0,0,0,6">
+                          <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="3" Margin="0,0,12,0">
+                              <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="1" Text="{Binding PercentText}" Classes="hint" FontSize="11"/>
+                              </Grid>
+                              <Panel Height="4">
+                                <Border Background="#1B1B1F" CornerRadius="2"/>
+                                <Border HorizontalAlignment="Left" CornerRadius="2" Background="#EDEDF0"
+                                        Width="{Binding BarRatio, Converter={x:Static conv:AppConverters.RatioToWidth}, ConverterParameter=220}"/>
+                              </Panel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                              <TextBlock Text="{Binding CountText}" FontSize="13" FontWeight="Bold" HorizontalAlignment="Right"/>
+                              <TextBlock Text="{Binding ValueText}" Classes="money" FontSize="11" HorizontalAlignment="Right"/>
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </DockPanel>
+              </Border>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,*">
+              <Border Classes="glass" Padding="18" Margin="0,0,12,0" MinHeight="200">
+                <StackPanel Spacing="12">
+                  <TextBlock Text="{Binding Ui.HintAvgInv}" Classes="panel-title"/>
+                  <TextBlock Text="{Binding Ui.HintAvgInvBody}" Classes="hint" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding StatsAvgInventory, Converter={x:Static conv:AppConverters.Money}}"
+                             Classes="metric money" FontSize="36" FontWeight="Bold" LetterSpacing="-1"/>
+                  <TextBlock Text="{Binding ScannedAccountsLine}" Classes="hint"/>
+                  <TextBlock Text="{Binding StatsLivePortfolio, Converter={x:Static conv:AppConverters.Money}, StringFormat={}{0}}" Classes="hint"/>
+                </StackPanel>
+              </Border>
+
+              <Border Grid.Column="1" Classes="glass" Padding="18" MinHeight="200">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Ui.HintTopByPrice}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding BestItemLine}" Classes="hint" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding TopSkinStats}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:PortfolioItemRow">
+                        <Border Classes="item" Padding="8,6" Margin="0,0,0,4">
+                          <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding Name}" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ValueText}" Classes="money" FontSize="11" Margin="10,0,0,0"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </DockPanel>
+              </Border>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ DEVICE IDs (HWID) вЂ” DockPanel so list fills height в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <DockPanel IsVisible="{Binding IsHwid}" Margin="24,20,24,12">
+          <StackPanel DockPanel.Dock="Top" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroHwid}" Classes="hero"/>
+                <TextBlock Text="{Binding Ui.SubHwid}" Classes="sub" TextWrapping="Wrap"/>
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnReadPc}" Command="{Binding RefreshRealHwidCommand}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Prominent admin notice: full HWID registry spoof needs elevation -->
+            <Border Classes="glass" Padding="14" BorderBrush="#5A3038" BorderThickness="1"
+                    IsVisible="{Binding ShowHwidAdminWarning}">
+              <Grid ColumnDefinitions="Auto,*">
+                <Border Classes="staticon" Background="#1E1416" BorderBrush="#46282D" Width="40" Height="40" CornerRadius="12">
+                  <Path Classes="glyph" Data="{StaticResource IcoAlert}" Width="18" Height="18" Fill="#E88992"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="4">
+                  <TextBlock Text="{Binding Ui.HwidAdminBannerTitle}" FontSize="14" FontWeight="Bold" Foreground="#F0BABE"
+                             TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Ui.HwidAdminBannerBody}" Classes="hint" TextWrapping="Wrap" Foreground="#C9A0A5"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Border Classes="glass" Padding="14" BorderBrush="#2C3530" BorderThickness="1"
+                    IsVisible="{Binding IsRunningAsAdmin}">
+              <Grid ColumnDefinitions="Auto,*">
+                <Border Classes="staticon" Background="#141816" BorderBrush="#2C3530" Width="40" Height="40" CornerRadius="12">
+                  <Path Classes="glyph" Data="{StaticResource IcoConfirm}" Width="18" Height="18" Fill="#C9C9CF"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="4">
+                  <TextBlock Text="{Binding Ui.HwidAdminOkTitle}" FontSize="14" FontWeight="Bold" Foreground="#EDEDF0"
+                             TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Ui.HwidAdminOkBody}" Classes="hint" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="glass" Padding="14">
+              <StackPanel Spacing="10">
+                <TextBlock Text="{Binding HwidSummaryLine}" FontSize="13" FontWeight="SemiBold" Foreground="#FAFAFA" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding HwidAdminHint}" Classes="hint" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding HwidSelectedGroupHint}" Classes="hint" TextWrapping="Wrap" Foreground="#C9C9CF"/>
+                <Border Classes="divider"/>
+                <TextBlock Text="{Binding Ui.LabelRegenerate}" Classes="label"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="{Binding Ui.BtnChecked}" Command="{Binding GenerateHwidForSelectedCommand}" Padding="14,9"
+                          ToolTip.Tip="{Binding Ui.TipHwidChecked}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnThisAccount}" Command="{Binding GenerateHwidForFocusedCommand}" Padding="14,9"
+                          ToolTip.Tip="{Binding Ui.TipHwidThis}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnActiveGroup}" Command="{Binding GenerateHwidForGroupCommand}" Padding="14,9"
+                          ToolTip.Tip="{Binding Ui.TipHwidGroup}"/>
+                  <Button Classes="danger" Content="{Binding Ui.BtnAllAccounts}" Command="{Binding GenerateHwidForAllCommand}" Padding="14,9"
+                          ToolTip.Tip="{Binding Ui.TipHwidAll}"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Classes="field" Text="{Binding HwidFilter}" Watermark="{Binding Ui.WatermarkFilterAccounts}"/>
+              <Border Grid.Column="1" Classes="chip accent" VerticalAlignment="Center" Margin="10,0,0,0">
+                <TextBlock Text="{Binding HwidProfilesChip}" Foreground="#D8D8DE" FontSize="11" FontWeight="SemiBold"/>
+              </Border>
+            </Grid>
+          </StackPanel>
+
+          <Grid ColumnDefinitions="1.35*,*" Margin="0,12,0,0">
+            <Border Classes="glass" Padding="10" Margin="0,0,12,0">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="{Binding Ui.HintAccountsFocus}" Classes="panel-title" Margin="6,4,6,10"/>
+                <ListBox ItemsSource="{Binding HwidAccountRows}" Background="Transparent" BorderThickness="0"
+                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:SteamAccount">
+                      <Border Classes="item" Padding="12,10"
+                              Background="{Binding IsSelected, Converter={x:Static conv:AppConverters.SelectedBg}}"
+                              PointerPressed="OnAccountPressed">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Spacing="3">
+                            <TextBlock Text="{Binding Login}" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding HwidFingerprint}" FontSize="11" Foreground="#6C6C75"
+                                       FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding GroupName, TargetNullValue=ungrouped}" FontSize="10" Foreground="#A2A2A9"/>
+                          </StackPanel>
+                          <Border Grid.Column="1" Classes="chip" Padding="7,3" IsVisible="{Binding HasHwid}" VerticalAlignment="Center">
+                            <TextBlock Text="OK" FontSize="10" FontWeight="SemiBold" Foreground="#C9C9CF"/>
+                            
+                          </Border>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </Border>
+
+            <Border Grid.Column="1" Classes="glass" Padding="16">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Ui.LabelCompare}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintComparePc}" Classes="hint"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="ghost" Content="{Binding Ui.BtnApplyNow}" Command="{Binding ApplyHwidForFocusedCommand}" Padding="12,7"/>
+                    <Button Classes="ghost" Content="{Binding Ui.BtnRestorePc}" Command="{Binding RestoreHwidCommand}" Padding="12,7"/>
+                    <Button Classes="accent" Content="{Binding Ui.BtnNewProfile}" Command="{Binding GenerateHwidForFocusedCommand}" Padding="12,7"/>
+                  </StackPanel>
+                </StackPanel>
+                <ScrollViewer>
+                  <ItemsControl ItemsSource="{Binding HwidCompareRows}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:HwidCompareRow">
+                        <Border Classes="item" Padding="10,8" Margin="0,0,0,5">
+                          <StackPanel Spacing="3">
+                            <TextBlock Text="{Binding Component}" FontSize="11" FontWeight="SemiBold" Foreground="#A2A2A9"/>
+                            <TextBlock FontSize="11" Foreground="#6C6C75" FontFamily="Cascadia Mono, Consolas, monospace"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding Real, StringFormat={}R: {0}}"/>
+                            <TextBlock FontSize="11" Foreground="#FAFAFA" FontFamily="Cascadia Mono, Consolas, monospace"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding Spoofed, StringFormat={}P: {0}}"/>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+            </Border>
+          </Grid>
+        </DockPanel>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ PROXY / CONFIRM / IN / REVIEW / AUDIT / SETTINGS в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <ScrollViewer IsVisible="{Binding IsProxyPage}">
+          <StackPanel Margin="30,24,30,30" Spacing="16" MaxWidth="1000">
+            <StackPanel Spacing="3">
+              <TextBlock Text="{Binding Ui.HeroProxy}" Classes="hero"/>
+              <TextBlock Text="{Binding Ui.SubProxy}" Classes="sub"/>
+            </StackPanel>
+
+            <!-- Status strip -->
+            <Border Classes="glass" Padding="14">
+              <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Ui.LabelAssigned}" Classes="label"/>
+                  <TextBlock Text="{Binding ProxyStatus}" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2" Margin="12,0">
+                  <TextBlock Text="{Binding Ui.LabelLastCheck}" Classes="label"/>
+                  <TextBlock Text="{Binding ProxyCheckSummary, TargetNullValue=вЂ”}" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="2">
+                  <TextBlock Text="{Binding Ui.LabelFailedAcc}" Classes="label"/>
+                  <TextBlock Text="{Binding ProxyFailedCount}" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <!-- 1 В· Proxy list -->
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Border Classes="staticon">
+                    <TextBlock Text="1" FontSize="13" FontWeight="Bold" Foreground="#C9C9CF"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="2" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Ui.LabelProxyList}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintProxyPaste}" Classes="hint" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Grid>
+                <TextBox Classes="field" Text="{Binding ProxyBulkText}" AcceptsReturn="True" Height="120"
+                         Watermark="user:pass@ip:port&#x0a;ip:port&#x0a;вЂ¦"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="ghost" Content="{Binding Ui.BtnLoadFile}" Command="{Binding ImportProxiesFromFileCommand}" Padding="12,8"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnTestList}" Command="{Binding CheckProxyListCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,8"
+                          ToolTip.Tip="{Binding Ui.TipProxyPing}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnKeepOk}" Command="{Binding KeepOnlyWorkingProxiesInListCommand}" Padding="12,8"
+                          ToolTip.Tip="{Binding Ui.TipProxyKeepOk}"/>
+                </StackPanel>
+                <Border Classes="divider"/>
+                <TextBlock Text="{Binding Ui.LabelApplyList}" Classes="label"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="{Binding Ui.BtnApplyAll}" Command="{Binding DistributeProxiesToAllAccountsCommand}" Padding="14,9"
+                          ToolTip.Tip="{Binding Ui.TipProxyRoundRobin}"/>
+                  <Button Classes="primary" Content="{Binding Ui.BtnApplySelected}" Command="{Binding DistributeProxiesFromTextCommand}" Padding="14,9"
+                          ToolTip.Tip="{Binding Ui.TipProxySelectedOnly}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnTestSelected}" Command="{Binding CheckSelectedAccountProxiesCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,9"
+                          ToolTip.Tip="{Binding Ui.TipProxyTestAcc}"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- 2 В· Single / default -->
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Border Classes="staticon">
+                    <TextBlock Text="2" FontSize="13" FontWeight="Bold" Foreground="#C9C9CF"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="2" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Ui.HintOneProxy}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintOneProxyBody}" Classes="hint" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Classes="field" Text="{Binding SingleProxyInput}" Watermark="user:pass@ip:port"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                    <Button Classes="ghost" Content="{Binding Ui.BtnTest}" Command="{Binding CheckSingleProxyCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,8"/>
+                    <Button Classes="accent" Content="{Binding Ui.BtnToSelected}" Command="{Binding ApplyProxyToSelectedCommand}" Padding="12,8"
+                            ToolTip.Tip="{Binding Ui.TipProxyWrite}"/>
+                    <Button Classes="ghost" Content="{Binding Ui.BtnClearSelected}" Command="{Binding ClearProxySelectedCommand}" Padding="12,8"/>
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Ui.LabelDefaultFallback}" Classes="label"/>
+                    <TextBox Classes="field" Text="{Binding Settings.DefaultProxy}" Watermark="{Binding Ui.LabelOptionalProxy}"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnSaveDefault}" Margin="8,22,0,0" Padding="12,8"
+                          Command="{Binding SaveDefaultProxyCommand}" VerticalAlignment="Top"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <!-- 3 В· By group -->
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <Border Classes="staticon">
+                    <TextBlock Text="3" FontSize="13" FontWeight="Bold" Foreground="#C9C9CF"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="2" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Ui.HintProxiesGroup}" Classes="panel-title"/>
+                    <TextBlock Text="{Binding Ui.HintProxiesGroupBody}" Classes="hint"/>
+                  </StackPanel>
+                  <Border Grid.Column="2" Classes="chip accent" VerticalAlignment="Center"
+                          IsVisible="{Binding HasProxyGroup}">
+                    <TextBlock Text="{Binding ProxyGroupHeader}" Foreground="#D8D8DE" FontSize="11" FontWeight="SemiBold"/>
+                  </Border>
+                </Grid>
+
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding Ui.LabelPickGroup}" Classes="label"/>
+                  <ItemsControl ItemsSource="{Binding AccountGroups}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:AccountGroup">
+                        <Button Classes="ghost" Padding="11,6" Margin="0,0,6,6"
+                                Command="{Binding DataContext.FocusProxyGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}"
+                                Classes.active="{Binding IsProxyTarget}">
+                          <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Border Width="7" Height="7" CornerRadius="3" VerticalAlignment="Center"
+                                    Background="{Binding Color, Converter={x:Static conv:AppConverters.HexBrush}}"/>
+                            <TextBlock Text="{Binding Name}" FontSize="12"/>
+                            <TextBlock Text="{Binding ProxySummary}" FontSize="11" Foreground="#6C6C75"/>
+                          </StackPanel>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="{Binding Ui.HintNoGroupsProxy}" Classes="hint"
+                             IsVisible="{Binding AccountGroups.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="12" IsVisible="{Binding HasProxyGroup}"
+                            DataContext="{Binding SelectedAccountGroup}">
+                  <Border Classes="divider"/>
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Ui.LabelHowAssign}" Classes="label"/>
+                    <Border Classes="segment"><StackPanel Orientation="Horizontal">
+                      <Button Classes="pill" Content="{Binding DataContext.Ui.BtnSameAll, RelativeSource={RelativeSource AncestorType=Window}}" Command="{Binding DataContext.SetGroupProxyModeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Fixed"
+                              ToolTip.Tip="{Binding DataContext.Ui.TipProxySame, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                      <Button Classes="pill" Content="{Binding DataContext.Ui.BtnSpread, RelativeSource={RelativeSource AncestorType=Window}}" Command="{Binding DataContext.SetGroupProxyModeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Balanced"
+                              ToolTip.Tip="{Binding DataContext.Ui.TipProxySpread, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                      <Button Classes="pill" Content="{Binding DataContext.Ui.BtnShuffle, RelativeSource={RelativeSource AncestorType=Window}}" Command="{Binding DataContext.SetGroupProxyModeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="Random"
+                              ToolTip.Tip="{Binding DataContext.Ui.TipProxyShuffle, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </StackPanel></Border>
+                  </StackPanel>
+                  <Grid ColumnDefinitions="*,*">
+                    <StackPanel Spacing="7" Margin="0,0,10,0">
+                      <TextBlock Text="{Binding DataContext.Ui.LabelOneProxy, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
+                      <TextBox Classes="field" Text="{Binding Proxy}" Watermark="user:pass@ip:port"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="7" Margin="10,0,0,0">
+                      <TextBlock Text="{Binding DataContext.Ui.LabelOrPool, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
+                      <TextBox Classes="field" Text="{Binding ProxyPool}" AcceptsReturn="True" Height="76"
+                               Watermark="ip:port&#x0a;ip:port"/>
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="accent" Content="{Binding DataContext.Ui.BtnApplyToGroup, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Command="{Binding DataContext.ApplyProxyToGroupTargetCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Classes="ghost" Content="{Binding DataContext.Ui.BtnSaveGroup, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Command="{Binding DataContext.SaveAccountGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"/>
+                    <Button Classes="ghost" Content="{Binding DataContext.Ui.BtnClearMemberProxies, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Command="{Binding DataContext.ClearGroupMemberProxiesCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"/>
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- Check results -->
+            <Border Classes="glass" Padding="16"
+                    IsVisible="{Binding ProxyCheckResults.Count, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
+              <StackPanel Spacing="10">
+                <TextBlock Text="{Binding Ui.LabelCheckResults}" Classes="panel-title"/>
+                <ItemsControl ItemsSource="{Binding ProxyCheckResults}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="svc:ProxyCheckResult">
+                      <Border Classes="item" Padding="10,8" Margin="0,0,0,4">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding ProxyShort}" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding StatusText}" Classes="hint" FontSize="11"/>
+                          </StackPanel>
+                          <TextBlock Grid.Column="1" Classes="hint" VerticalAlignment="Center"
+                                     Text="{Binding Ms, StringFormat={}{0}ms}"/>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ AUTO FARM В· MonkePanel в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <ScrollViewer IsVisible="{Binding IsAutoFarm}">
+          <StackPanel Margin="30,24,30,30" Spacing="18" MaxWidth="720">
+            <StackPanel Spacing="3">
+              <TextBlock Text="{Binding Ui.HeroAutoFarm}" Classes="hero"/>
+              <TextBlock Text="{Binding Ui.SubAutoFarm}" Classes="sub"/>
+            </StackPanel>
+
+            <Border Classes="glass" Padding="28">
+              <StackPanel Spacing="18">
+                <!-- MonkePanel logo (logo2.svg) + title -->
+                <StackPanel Spacing="14" HorizontalAlignment="Center">
+                  <Border Width="112" Height="100" HorizontalAlignment="Center" Background="Transparent">
+                    <svg:Svg Path="avares://SilverManager/Assets/logo2.svg"
+                             Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <StackPanel Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="MonkePanel" FontSize="22" FontWeight="Bold" Foreground="#FAFAFA"
+                               LetterSpacing="-0.4" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Ui.AutoFarmTagline}" FontSize="13" FontWeight="SemiBold"
+                               Foreground="#C9C9CF" HorizontalAlignment="Center" TextAlignment="Center"/>
+                  </StackPanel>
+                </StackPanel>
+
+                <TextBlock Text="{Binding Ui.AutoFarmTitle}" FontSize="16" FontWeight="Bold" Foreground="#EDEDF0"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Text="{Binding Ui.AutoFarmBody}" Classes="hint" TextWrapping="Wrap" FontSize="13"
+                           LineHeight="20" TextAlignment="Center" MaxWidth="560" HorizontalAlignment="Center"/>
+
+                <Border Classes="divider"/>
+                <StackPanel Spacing="10">
+                  <TextBlock Text="{Binding Ui.LabelLinks}" Classes="label" HorizontalAlignment="Center"/>
+                  <Grid ColumnDefinitions="*,*">
+                    <Border Classes="item" Padding="16" Margin="0,0,8,0">
+                      <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Ui.AutoFarmSite}" FontSize="12" FontWeight="SemiBold" Foreground="#A2A2A9"/>
+                        <TextBlock Text="www.monkepanel.com" FontSize="14" FontWeight="SemiBold" Foreground="#FAFAFA"/>
+                        <Button Classes="accent" Content="{Binding Ui.AutoFarmOpenSite}" HorizontalAlignment="Left"
+                                Command="{Binding OpenMonkePanelSiteCommand}" Padding="14,8"/>
+                      </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Classes="item" Padding="16" Margin="8,0,0,0">
+                      <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Ui.AutoFarmTelegram}" FontSize="12" FontWeight="SemiBold" Foreground="#A2A2A9"/>
+                        <TextBlock Text="t.me/monkepanel" FontSize="14" FontWeight="SemiBold" Foreground="#FAFAFA"/>
+                        <Button Classes="accent" Content="{Binding Ui.AutoFarmOpenTelegram}" HorizontalAlignment="Left"
+                                Command="{Binding OpenMonkePanelTelegramCommand}" Padding="14,8"/>
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding Ui.AutoFarmFitTitle}" Classes="panel-title"/>
+                <TextBlock Classes="hint" TextWrapping="Wrap" Text="{Binding Ui.AutoFarmFitBody}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer IsVisible="{Binding IsConfirmations}">
+          <StackPanel Margin="30,24,30,30" Spacing="14" MaxWidth="900">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroConfirm}" Classes="hero"/>
+                <TextBlock Text="{Binding Ui.SubConfirm}" Classes="sub" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="accent" Content="{Binding Ui.BtnCheck}" Command="{Binding LoadConfirmationsCommand}"
+                        IsEnabled="{Binding !IsBusy}" Padding="16,9"/>
+                <Button Classes="ghost" Content="{Binding Ui.BtnAcceptSelected}" Command="{Binding AcceptSelectedConfirmationsCommand}"
+                        IsEnabled="{Binding !IsBusy}" Padding="14,9"/>
+              </StackPanel>
+            </Grid>
+
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{Binding Ui.LabelAccountsToCheck}" Classes="panel-title"/>
+                <TextBlock Text="{Binding Ui.HintWatchConfirm}" Classes="hint" TextWrapping="Wrap"/>
+
+                <ItemsControl ItemsSource="{Binding ConfirmWatchList}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:SteamAccount">
+                      <Border Classes="item" Padding="10,8" Margin="0,0,0,4">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Login}" FontWeight="SemiBold" FontSize="13"/>
+                            <TextBlock Text="{Binding Readiness}" Classes="hint" FontSize="11"/>
+                          </StackPanel>
+                          <Button Grid.Column="1" Classes="ghost" Content="{Binding DataContext.Ui.BtnRemove, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  Command="{Binding DataContext.RemoveConfirmWatchCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}" Padding="10,6"/>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Ui.HintWatchEmpty}" Classes="hint"
+                           IsVisible="{Binding ConfirmWatchList.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+
+                <Border Classes="divider"/>
+                <TextBlock Text="{Binding Ui.LabelAddExisting}" Classes="label"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <ComboBox Classes="field" ItemsSource="{Binding ConfirmPickCandidates}"
+                            SelectedItem="{Binding ConfirmPickAccount}"
+                            DisplayMemberBinding="{Binding Login}" MinHeight="36"/>
+                  <Button Grid.Column="1" Classes="primary" Content="{Binding Ui.BtnAdd}" Margin="8,0,0,0" Padding="14,8"
+                          Command="{Binding AddConfirmFromPickCommand}"/>
+                </Grid>
+
+                <TextBlock Text="{Binding Ui.LabelAddNew}" Classes="label" Margin="0,6,0,0"/>
+                <Grid ColumnDefinitions="*,*,*,Auto,Auto">
+                  <TextBox Classes="field" Text="{Binding ConfirmNewLogin}" Watermark="{Binding Ui.LabelSteamLogin}"/>
+                  <TextBox Grid.Column="1" Classes="field" Text="{Binding ConfirmNewPassword}" PasswordChar="*" Margin="8,0,0,0"
+                           Watermark="{Binding Ui.LabelSteamPass}"/>
+                  <TextBox Grid.Column="2" Classes="field" Text="{Binding ConfirmNewMaPath}" Margin="8,0,0,0"
+                           Watermark="{Binding Ui.LabelSelectMafile}"/>
+                  <Button Grid.Column="3" Classes="ghost" Content="{Binding Ui.BtnBrowse}" Margin="8,0,0,0" Padding="12,8"
+                          Command="{Binding BrowseConfirmNewMaFileCommand}"/>
+                  <Button Grid.Column="4" Classes="accent" Content="{Binding Ui.BtnAdd}" Margin="8,0,0,0" Padding="14,8"
+                          Command="{Binding AddConfirmNewAccountCommand}"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding Confirmations}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:ConfirmationItem">
+                  <Border Classes="card" Padding="13" Margin="0,0,0,6">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
+                      <StackPanel Grid.Column="1" Margin="10,0" Spacing="2">
+                        <TextBlock Text="{Binding Headline}" FontSize="13" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Summary}" Classes="hint" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding AccountLogin}" Foreground="#C9C9CF" FontSize="12" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer IsVisible="{Binding IsIncoming}">
+          <StackPanel Margin="30,24,30,30" Spacing="14" MaxWidth="900">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroIncoming}" Classes="hero"/>
+                <TextBlock Text="{Binding Ui.SubIncoming}" Classes="sub" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="accent" Content="{Binding Ui.BtnCheck}" Command="{Binding LoadTradeOffersCommand}"
+                        IsEnabled="{Binding !IsBusy}" Padding="16,9"
+                        ToolTip.Tip="{Binding Ui.TipRefreshIncoming}"/>
+                <Button Classes="ghost" Content="{Binding Ui.BtnAcceptAll}" Command="{Binding AcceptAllIncomingCommand}"
+                        IsEnabled="{Binding !IsBusy}" Padding="14,9"
+                        ToolTip.Tip="{Binding Ui.TipAcceptAll}"/>
+              </StackPanel>
+            </Grid>
+
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{Binding Ui.LabelAccountsToCheck}" Classes="panel-title"/>
+                <TextBlock Text="{Binding Ui.HintWatchIncoming}" Classes="hint" TextWrapping="Wrap"/>
+
+                <ItemsControl ItemsSource="{Binding IncomingWatchList}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:SteamAccount">
+                      <Border Classes="item" Padding="10,8" Margin="0,0,0,4">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Login}" FontWeight="SemiBold" FontSize="13"/>
+                            <TextBlock Text="{Binding Readiness}" Classes="hint" FontSize="11"/>
+                          </StackPanel>
+                          <Button Grid.Column="1" Classes="ghost" Content="{Binding DataContext.Ui.BtnRemove, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  Command="{Binding DataContext.RemoveIncomingWatchCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}" Padding="10,6"/>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Ui.HintWatchEmpty}" Classes="hint"
+                           IsVisible="{Binding IncomingWatchList.Count, Converter={x:Static conv:AppConverters.ZeroToTrue}}"/>
+
+                <Border Classes="divider"/>
+                <TextBlock Text="{Binding Ui.LabelAddExisting}" Classes="label"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <ComboBox Classes="field" ItemsSource="{Binding IncomingPickCandidates}"
+                            SelectedItem="{Binding IncomingPickAccount}"
+                            DisplayMemberBinding="{Binding Login}" MinHeight="36"/>
+                  <Button Grid.Column="1" Classes="primary" Content="{Binding Ui.BtnAdd}" Margin="8,0,0,0" Padding="14,8"
+                          Command="{Binding AddIncomingFromPickCommand}"/>
+                </Grid>
+
+                <TextBlock Text="{Binding Ui.LabelAddNew}" Classes="label" Margin="0,6,0,0"/>
+                <Grid ColumnDefinitions="*,*,*,Auto,Auto">
+                  <TextBox Classes="field" Text="{Binding IncomingNewLogin}" Watermark="{Binding Ui.LabelSteamLogin}"/>
+                  <TextBox Grid.Column="1" Classes="field" Text="{Binding IncomingNewPassword}" PasswordChar="*" Margin="8,0,0,0"
+                           Watermark="{Binding Ui.LabelSteamPass}"/>
+                  <TextBox Grid.Column="2" Classes="field" Text="{Binding IncomingNewMaPath}" Margin="8,0,0,0"
+                           Watermark="{Binding Ui.LabelSelectMafile}"/>
+                  <Button Grid.Column="3" Classes="ghost" Content="{Binding Ui.BtnBrowse}" Margin="8,0,0,0" Padding="12,8"
+                          Command="{Binding BrowseIncomingNewMaFileCommand}"/>
+                  <Button Grid.Column="4" Classes="accent" Content="{Binding Ui.BtnAdd}" Margin="8,0,0,0" Padding="14,8"
+                          Command="{Binding AddIncomingNewAccountCommand}"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="glass" Padding="28"
+                    IsVisible="{Binding HasIncomingOffers, Converter={x:Static conv:AppConverters.InvertBool}}">
+              <StackPanel Spacing="10" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding Ui.HintNoIncoming}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding IncomingEmptyHint}" Classes="hint" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420"/>
+              </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding TradeOffers}"
+                          IsVisible="{Binding HasIncomingOffers}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:TradeOfferItem">
+                  <Border Classes="card" Padding="14" Margin="0,0,0,8" IsVisible="{Binding IsIncoming}">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                          <TextBlock Text="{Binding AccountLogin}" FontWeight="SemiBold" FontSize="14"/>
+                          <Border Background="#1E1E22" BorderBrush="#35353D" BorderThickness="1" CornerRadius="6" Padding="7,2">
+                            <TextBlock Text="{Binding State}" FontSize="10" Foreground="#A2A2A9"/>
+                          </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Summary}" FontSize="12"/>
+                        <TextBlock Text="{Binding PartnerShort}" Classes="hint" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding SafetyLabel}" FontSize="12" FontWeight="SemiBold" Foreground="#EDEDF0"/>
+                        <TextBlock Text="{Binding SafetyReason}" Classes="hint" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="ghost" Content="{Binding DataContext.Ui.BtnDecline, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Command="{Binding DataContext.DeclineOfferCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" Padding="12,8"/>
+                        <Button Classes="accent" Content="{Binding DataContext.Ui.BtnAccept, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Command="{Binding DataContext.AcceptOfferCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" Padding="14,8"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer IsVisible="{Binding IsReview}">
+          <StackPanel Margin="30,24,30,30" Spacing="14" MaxWidth="1000">
+            <StackPanel Spacing="3">
+              <TextBlock Text="VAC bans" Classes="hero"/>
+              <TextBlock Text="{Binding Ui.SubReview}" Classes="sub" TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="accent" Content="{Binding Ui.BtnCheckSelected}" Command="{Binding ReviewSelectedCommand}" IsEnabled="{Binding !IsBusy}" MinWidth="140" Padding="16,10"/>
+              <Button Classes="ghost" Content="{Binding Ui.BtnCheckAll}" Command="{Binding ReviewAllCommand}" IsEnabled="{Binding !IsBusy}" MinWidth="120" Padding="16,10"/>
+              <Button Classes="danger" Content="{Binding Ui.BtnRemoveBanned}" Command="{Binding RemoveVacAccountsCommand}" MinWidth="140" Padding="16,10"
+                      ToolTip.Tip="{Binding Ui.TipDeleteVacList}"/>
+            </StackPanel>
+
+            <!-- Result summary after a check -->
+            <UniformGrid Columns="3">
+              <Border Classes="stat" Margin="0,0,10,0" Padding="14">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="CLEAN" Classes="label"/>
+                  <TextBlock Text="{Binding ReviewCleanCount}" Classes="metric money" FontSize="28"/>
+                  <TextBlock Text="{Binding Ui.HintNoBans}" Classes="hint"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="stat" Margin="0,0,10,0" Padding="14">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="BANNED / BLOCKED" Classes="label"/>
+                  <TextBlock Text="{Binding ReviewBannedCount}" Classes="metric" FontSize="28" Foreground="#E0575F"/>
+                  <TextBlock Text="VAC В· game В· economy В· marked" Classes="hint"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="stat" Padding="14">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="NOT CHECKED" Classes="label"/>
+                  <TextBlock Text="{Binding ReviewUncheckedCount}" Classes="metric" FontSize="28"/>
+                  <TextBlock Text="{Binding Ui.HintNeedApi}" Classes="hint"/>
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+            <Border Classes="glass" Padding="14">
+              <TextBlock Text="{Binding ReviewSummaryLine}" FontSize="13" FontWeight="SemiBold" Foreground="#FAFAFA" TextWrapping="Wrap"/>
+            </Border>
+
+            <Border Classes="glass" Padding="14">
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="{Binding Ui.HintSteamApiReq}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Ui.HintSteamApiBody}" Classes="hint" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding ApiKeyStatus}" Classes="hint" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.NavSettings}" Command="{Binding GoSettingsCommand}"
+                        VerticalAlignment="Top" Margin="12,0,0,0" Padding="14,8"/>
+              </Grid>
+            </Border>
+            <Grid ColumnDefinitions="*,170,180" Margin="12,0,12,0">
+              <TextBlock Text="{Binding Ui.LabelAccountCol}" Classes="label"/>
+              <TextBlock Grid.Column="1" Text="BAN STATUS" Classes="label"/>
+              <TextBlock Grid.Column="2" Text="{Binding Ui.LabelLastCheck}" Classes="label"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Accounts}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:SteamAccount">
+                  <Border Classes="card" Padding="13" Margin="0,0,0,5">
+                    <Grid ColumnDefinitions="*,170,180">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Login}" FontWeight="SemiBold" FontSize="13"/>
+                        <TextBlock Text="{Binding ReviewBadge}" Classes="hint" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding VacStatus}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                      <TextBlock Grid.Column="2" Text="{Binding VacCheckedText}" Classes="hint" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer IsVisible="{Binding IsAudit}">
+          <StackPanel Margin="30,24,30,30" Spacing="14" MaxWidth="840">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Ui.HeroAudit}" Classes="hero"/>
+                <TextBlock Text="{Binding Ui.HintAudit}" Classes="sub"/>
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnExportCsv}" Command="{Binding ExportAuditCommand}" VerticalAlignment="Center"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding AuditEntries}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:AuditEntry">
+                  <Border Classes="card" Padding="13" Margin="0,0,0,5"><TextBlock Text="{Binding Detail}" FontSize="12.5"/></Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer IsVisible="{Binding IsSettings}">
+          <StackPanel Margin="30,24,30,30" Spacing="14" MaxWidth="680">
+            <StackPanel Spacing="3">
+              <TextBlock Text="{Binding Ui.HeroSettings}" Classes="hero"/>
+              <TextBlock Text="{Binding Ui.SubSettings}" Classes="sub"/>
+            </StackPanel>
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="11">
+                <TextBlock Text="{Binding Ui.LabelApiKey}" Classes="panel-title"/>
+                <TextBlock Text="{Binding Ui.HintApiKey}" Classes="hint"/>
+                <TextBox Classes="field" Text="{Binding Settings.SteamWebApiKey}" Watermark="Paste key"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="{Binding Ui.BtnSave}" Command="{Binding SaveApiKeyCommand}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnGetKey}" Command="{Binding OpenSteamApiKeyPageCommand}"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="11">
+                <TextBlock Text="{Binding Ui.LabelSafety}" Classes="panel-title"/>
+                <CheckBox Content="{Binding Ui.HintDryRun}" IsChecked="{Binding Settings.SafeModeDryRun}"/>
+                <CheckBox Content="{Binding Ui.HintRouteGroup}" IsChecked="{Binding Settings.RouteTradesByGroup}"/>
+                <TextBlock Classes="hint" Text="{Binding Ui.LabelGroupWarehouseHint}" TextWrapping="Wrap"/>
+                <CheckBox Content="{Binding Ui.HintSkipHold}" IsChecked="{Binding Settings.SkipTradeHoldItems}"/>
+                <Border Classes="divider"/>
+                <CheckBox Content="{Binding Ui.HintCountNonTradable}" IsChecked="{Binding Settings.CountNonTradable}"/>
+                <TextBlock Classes="hint" TextWrapping="Wrap" Text="{Binding Ui.LabelFloatEmpty}"/>
+              </StackPanel>
+            </Border>
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="11">
+                <TextBlock Text="{Binding Ui.LabelSound}" Classes="panel-title"/>
+                <CheckBox Content="{Binding Ui.HintEnableSounds}" IsChecked="{Binding Settings.SoundEnabled}"/>
+                <TextBlock Classes="hint" TextWrapping="Wrap"
+                           Text="{Binding Ui.HintSoundsOff}"/>
+                <Grid ColumnDefinitions="Auto,*,Auto" IsEnabled="{Binding Settings.SoundEnabled}">
+                  <TextBlock Text="{Binding Ui.LabelVolume}" Classes="label" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                          Value="{Binding Settings.SoundVolumePercent}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Settings.SoundVolumePercent, StringFormat={}{0}%}"
+                             Classes="hint" Margin="12,0,0,0" VerticalAlignment="Center" MinWidth="36"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="11">
+                <TextBlock Text="{Binding Ui.LabelTools}" Classes="panel-title"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="ghost" Content="{Binding Ui.BtnProxy}" Command="{Binding GoProxyCommand}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnDeviceIds}" Command="{Binding GoHwidCommand}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnLaunchSteam}" Command="{Binding LaunchSteamCommand}"/>
+                  <Button Classes="ghost" Content="{Binding Ui.BtnSaveAll}" Command="{Binding SaveSettingsCommand}"/>
+                </StackPanel>
+                <CheckBox Content="{Binding Ui.HintAlwaysHwid}" IsChecked="{Binding Settings.AlwaysSpoofHwid}"/>
+                <TextBlock Classes="hint" Text="{Binding Ui.SubHwid}" TextWrapping="Wrap"/>
+                <TextBlock Classes="hint" Text="{Binding Ui.HwidAdminBannerBody}" TextWrapping="Wrap" Foreground="#C9A0A5"
+                           IsVisible="{Binding ShowHwidAdminWarning}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Panel>
+    </Grid>
+
+    <!-- Status bar -->
+    <Border Grid.Row="2" Background="#E60D0D0F" BorderBrush="#1F1F24" BorderThickness="0,1,0,0" Padding="18,8">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Ellipse Width="6" Height="6" VerticalAlignment="Center" Margin="0,0,9,0"
+                 Fill="{Binding IsBusy, Converter={x:Static conv:AppConverters.BusyDot}}"/>
+        <TextBlock Grid.Column="1" Text="{Binding BusyText, TargetNullValue=Ready}" FontSize="11" Foreground="#6C6C75" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="2" Text="{Binding QueueProgressText}" FontSize="11" Foreground="#6C6C75" IsVisible="{Binding QueueRunning}" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+
+    <!-- Overlays -->
+    <Panel Grid.RowSpan="3" ZIndex="50" IsVisible="{Binding ShowImport}">
+      <Border Background="#D0050506" PointerPressed="OnOverlayDismissImport"/>
+      <Border Classes="modal" Width="480" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Border Classes="staticon" Width="32" Height="32" CornerRadius="10">
+              <Path Classes="glyph" Data="{StaticResource IcoImport}" Width="16" Height="16" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" Margin="11,0,0,0" Spacing="1">
+              <TextBlock Text="{Binding Ui.BtnImportTitle}" FontSize="16" FontWeight="Bold" LetterSpacing="-0.2"/>
+              <TextBlock Text="login:password per line В· maFiles folder optional" Classes="hint"/>
+            </StackPanel>
+            <Button Grid.Column="2" Classes="icon" Command="{Binding CloseImportCommand}">
+              <Path Classes="glyph" Data="{StaticResource IcoClose}" Width="11" Height="11" HorizontalAlignment="Center"/>
+            </Button>
+          </Grid>
+          <Border Classes="divider"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBox Classes="field" Text="{Binding LoginsPath}" Watermark="Accounts file" IsReadOnly="True"/>
+            <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnBrowse}" Command="{Binding BrowseLoginsCommand}" Margin="8,0,0,0"/>
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBox Classes="field" Text="{Binding MaDir}" Watermark="maFiles folder" IsReadOnly="True"/>
+            <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnBrowse}" Command="{Binding BrowseMaDirCommand}" Margin="8,0,0,0"/>
+          </Grid>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="ghost" Content="{Binding Ui.BtnCancel}" Command="{Binding CloseImportCommand}"/>
+            <Button Classes="accent" Content="{Binding Ui.BtnImport}" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsBusy}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <!-- Account editor: credentials and authenticator linkage are kept out of the list and saved explicitly. -->
+    <Panel Grid.RowSpan="3" ZIndex="61" IsVisible="{Binding ShowAccountPanel}">
+      <Border Background="#D0050506"/>
+      <Border Classes="modal" Width="590" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Ui.LabelEditAccount}" FontSize="16" FontWeight="Bold"/>
+              <TextBlock Text="{Binding Ui.LabelUpdateCreds}" Classes="hint" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button Grid.Column="1" Classes="icon" Command="{Binding CloseAccountPanelCommand}">
+              <Path Classes="glyph" Data="{StaticResource IcoClose}" Width="11" Height="11" HorizontalAlignment="Center"/>
+            </Button>
+          </Grid>
+          <Border Classes="divider"/>
+          <StackPanel Spacing="7">
+            <TextBlock Text="{Binding Ui.LabelLogin}" Classes="label"/>
+            <TextBox Classes="field" Text="{Binding EditLogin}" Watermark="{Binding Ui.LabelSteamLogin}"/>
+          </StackPanel>
+          <StackPanel Spacing="7">
+            <TextBlock Text="{Binding Ui.LabelPassword}" Classes="label"/>
+            <TextBox Classes="field" Text="{Binding EditPassword}" PasswordChar="*" Watermark="{Binding Ui.LabelSteamPass}"/>
+          </StackPanel>
+          <StackPanel Spacing="7">
+            <TextBlock Text="{Binding Ui.LabelMafile}" Classes="label"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Classes="field" Text="{Binding EditMaFilePath}" Watermark="{Binding Ui.LabelSelectMafile}"/>
+              <Button Grid.Column="1" Classes="ghost" Content="{Binding Ui.BtnBrowse}" Margin="8,0,0,0" Command="{Binding BrowseAccountMaFileCommand}"/>
+            </Grid>
+            <TextBlock Text="{Binding AccountEditStatus}" Classes="hint" TextWrapping="Wrap"/>
+          </StackPanel>
+          <Border Classes="glass" Padding="12">
+            <StackPanel Spacing="9">
+              <CheckBox Content="{Binding Ui.HintUseWarehouse}" IsChecked="{Binding EditIsWarehouse}"/>
+              <TextBlock Text="{Binding Ui.LabelTradeLinkField}" Classes="label"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Classes="field" Text="{Binding EditWarehouseTradeUrl}"
+                         Watermark="https://steamcommunity.com/tradeoffer/new/?partner=вЂ¦&amp;token=вЂ¦"/>
+                <Button Grid.Column="1" Classes="accent" Content="{Binding Ui.BtnFetchLink}" Margin="8,0,0,0"
+                        Command="{Binding FetchEditAccountTradeLinkCommand}" IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="{Binding Ui.TipFetchEdit}"/>
+              </Grid>
+              <TextBlock Text="{Binding Ui.LabelFetchHint}" Classes="hint" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="divider"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <Button Classes="danger" Content="{Binding Ui.BtnDeleteAccount}" HorizontalAlignment="Left" Padding="14,9"
+                    Command="{Binding DeleteAccountFromEditorCommand}"
+                    ToolTip.Tip="Remove this account from SilverManager (maFile on disk stays)"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button Classes="ghost" Content="{Binding Ui.BtnCancel}" Command="{Binding CloseAccountPanelCommand}"/>
+              <Button Classes="accent" Content="{Binding Ui.BtnSaveAccount}" Command="{Binding SaveAccountEditsCommand}"/>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <Panel Grid.RowSpan="3" ZIndex="60" IsVisible="{Binding ShowConfirm}">
+      <Border Background="#D0050506"/>
+      <Border Classes="modal" Background="#151315" BorderBrush="#3A2226" Width="420" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="13">
+          <Grid ColumnDefinitions="Auto,*">
+            <Border Width="32" Height="32" CornerRadius="10" Background="#1E1416" BorderBrush="#46282D" BorderThickness="1">
+              <Path Classes="glyph" Data="{StaticResource IcoAlert}" Width="16" Height="16" Fill="#E0575F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Grid.Column="1" Text="{Binding ConfirmTitle}" FontSize="15" FontWeight="Bold" Foreground="#F0BABE"
+                       VerticalAlignment="Center" Margin="11,0,0,0" TextWrapping="Wrap"/>
+          </Grid>
+          <TextBlock Text="{Binding ConfirmMessage}" FontSize="13" Foreground="#A2A2A9" TextWrapping="Wrap" LineHeight="19"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="ghost" Content="{Binding Ui.BtnCancel}" Command="{Binding CancelConfirmCommand}"/>
+            <Button Classes="danger" Content="{Binding ConfirmActionText}" Command="{Binding AcceptConfirmCommand}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <Panel Grid.RowSpan="3" ZIndex="55" IsVisible="{Binding ShowTransferReview}">
+      <Border Background="#D0050506"/>
+      <Border Classes="modal" Width="500" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Border Classes="staticon" Width="32" Height="32" CornerRadius="10">
+              <Path Classes="glyph" Data="{StaticResource IcoTransfer}" Width="16" Height="16" Fill="#C9C9CF" HorizontalAlignment="Center"/>
+            </Border>
+            <TextBlock Grid.Column="1" Text="{Binding Ui.LabelReadySend}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="11,0,0,0" LetterSpacing="-0.2"/>
+            <Button Grid.Column="2" Classes="icon" Command="{Binding CloseTransferReviewCommand}">
+              <Path Classes="glyph" Data="{StaticResource IcoClose}" Width="11" Height="11" HorizontalAlignment="Center"/>
+            </Button>
+          </Grid>
+          <Border Classes="divider"/>
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding TransferPlanSummary}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding TransferPlanIssueSummary}" Classes="hint" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Classes="field" Text="{Binding TransferPlanSearch}" Watermark="{Binding Ui.LabelSearchPlan}"/>
+              <Border Grid.Column="1" Classes="segment" Margin="8,0,0,0"><StackPanel Orientation="Horizontal">
+                <Button Classes="pill" Content="{Binding Ui.BtnAll}" Command="{Binding SetTransferPlanFilterCommand}" CommandParameter="All"/>
+                <Button Classes="pill" Content="{Binding Ui.BtnReady}" Command="{Binding SetTransferPlanFilterCommand}" CommandParameter="Ready"/>
+                <Button Classes="pill" Content="{Binding Ui.BtnIssues}" Command="{Binding SetTransferPlanFilterCommand}" CommandParameter="Issues"/>
+              </StackPanel></Border>
+            </Grid>
+            <ScrollViewer MaxHeight="220"><ItemsControl ItemsSource="{Binding FilteredTransferPlanAccounts}">
+              <ItemsControl.ItemTemplate><DataTemplate x:DataType="models:TransferPlanAccount"><Grid ColumnDefinitions="*,100,80" Margin="0,3">
+                <TextBlock Text="{Binding Login}" FontSize="12"/>
+                <TextBlock Grid.Column="1" Text="{Binding DestinationShort}" Classes="hint"/>
+                <TextBlock Grid.Column="2" Text="{Binding State}" Classes="hint" TextAlignment="Right"/>
+              </Grid></DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl></ScrollViewer>
+            <TextBlock Text="{Binding Ui.LabelPlanPreview}" Classes="hint" FontSize="10"/>
+            <CheckBox Content="{Binding Ui.LabelApprovePlan}" IsChecked="{Binding TransferPlanApproved}"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="ghost" Content="{Binding Ui.BtnBack}" Command="{Binding CloseTransferReviewCommand}"/>
+            <Button Classes="ghost" Content="{Binding Ui.BtnOpenTransfer}" Command="{Binding GoTransferFromReviewCommand}"/>
+            <Button Classes="accent" Content="{Binding Ui.BtnSendPlan}" Command="{Binding SendApprovedTransferPlanCommand}" IsEnabled="{Binding CanSendTransferPlan}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <Panel Grid.RowSpan="3" ZIndex="40" IsVisible="{Binding IsBusy}" IsHitTestVisible="False">
+      <Border Background="#F0141417" BorderBrush="#303038" BorderThickness="1" CornerRadius="12" Padding="15,11"
+              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,70,0,0"
+              BoxShadow="0 14 34 0 #70000000">
+        <StackPanel Orientation="Horizontal" Spacing="11">
+          <Ellipse Width="7" Height="7" Fill="#EDEDF0" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding BusyText}" FontSize="13" Foreground="#FAFAFA"/>
+        </StackPanel>
+      </Border>
+    </Panel>
+  </Grid>
+</Window>

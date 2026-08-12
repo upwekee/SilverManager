@@ -1,0 +1,949 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <!-- ── Surfaces ───────────────────────────────────────────── -->
+    <Color x:Key="Bg0">#0A0A0B</Color>
+    <Color x:Key="Bg1">#0F0F11</Color>
+    <Color x:Key="Bg2">#151517</Color>
+    <Color x:Key="Bg3">#1B1B1F</Color>
+    <Color x:Key="Bg4">#232328</Color>
+    <Color x:Key="Border">#26262C</Color>
+    <Color x:Key="BorderHi">#33333A</Color>
+
+    <!-- ── Text ───────────────────────────────────────────────── -->
+    <Color x:Key="Text">#FAFAFA</Color>
+    <Color x:Key="TextDim">#A2A2A9</Color>
+    <Color x:Key="TextMute">#6C6C75</Color>
+
+    <!-- ── Accent: silver. The "brand" is light itself — the CTA is the brightest
+         object on the page, and Hi/Lo are its lit and shaded faces. ───────── -->
+    <Color x:Key="Accent">#EDEDF0</Color>
+    <Color x:Key="AccentHi">#FFFFFF</Color>
+    <Color x:Key="AccentLo">#C4C4CA</Color>
+    <Color x:Key="AccentDim">#6C6C75</Color>
+    <Color x:Key="AccentSoft">#1E1E22</Color>
+    <Color x:Key="AccentEdge">#35353D</Color>
+
+    <!-- ── Semantic. Ranked by brightness because there is no hue to rank by:
+         success is pure white, warn is a step down, info a step below that.
+         Danger keeps a hue on purpose — failure must not be missable. ────── -->
+    <Color x:Key="Success">#FFFFFF</Color>
+    <Color x:Key="SuccessSoft">#1E1E22</Color>
+    <Color x:Key="Info">#A2A2A9</Color>
+    <Color x:Key="Warn">#C9C9CF</Color>
+    <Color x:Key="Danger">#E0575F</Color>
+
+    <SolidColorBrush x:Key="BrushBg0" Color="{StaticResource Bg0}" />
+    <SolidColorBrush x:Key="BrushBg1" Color="{StaticResource Bg1}" />
+    <SolidColorBrush x:Key="BrushBg2" Color="{StaticResource Bg2}" />
+    <SolidColorBrush x:Key="BrushBg3" Color="{StaticResource Bg3}" />
+    <SolidColorBrush x:Key="BrushBg4" Color="{StaticResource Bg4}" />
+    <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource Border}" />
+    <SolidColorBrush x:Key="BrushBorderHi" Color="{StaticResource BorderHi}" />
+    <SolidColorBrush x:Key="BrushText" Color="{StaticResource Text}" />
+    <SolidColorBrush x:Key="BrushTextDim" Color="{StaticResource TextDim}" />
+    <SolidColorBrush x:Key="BrushTextMute" Color="{StaticResource TextMute}" />
+    <SolidColorBrush x:Key="BrushAccent" Color="{StaticResource Accent}" />
+    <SolidColorBrush x:Key="BrushAccentHi" Color="{StaticResource AccentHi}" />
+    <SolidColorBrush x:Key="BrushAccentDim" Color="{StaticResource AccentDim}" />
+    <SolidColorBrush x:Key="BrushAccentSoft" Color="{StaticResource AccentSoft}" />
+    <SolidColorBrush x:Key="BrushAccentEdge" Color="{StaticResource AccentEdge}" />
+    <!-- BrushAccent2 = neutral high-contrast (legacy alias) -->
+    <SolidColorBrush x:Key="BrushAccent2" Color="{StaticResource Text}" />
+    <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource Success}" />
+    <SolidColorBrush x:Key="BrushMoney" Color="{StaticResource Success}" />
+    <SolidColorBrush x:Key="BrushInfo" Color="{StaticResource Info}" />
+    <SolidColorBrush x:Key="BrushWarn" Color="{StaticResource Warn}" />
+    <SolidColorBrush x:Key="BrushDanger" Color="{StaticResource Danger}" />
+
+    <!-- ── Motion: strong custom curves, never the weak built-ins ── -->
+    <SplineEasing x:Key="EaseOut" X1="0.23" Y1="1" X2="0.32" Y2="1" />
+    <SplineEasing x:Key="EaseInOut" X1="0.77" Y1="0" X2="0.175" Y2="1" />
+
+    <!-- ── Elevation ──────────────────────────────────────────── -->
+    <LinearGradientBrush x:Key="SheenPanel" StartPoint="0%,0%" EndPoint="0%,100%">
+      <GradientStop Offset="0" Color="#1A1A1D" />
+      <GradientStop Offset="1" Color="#131316" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SheenAccent" StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Offset="0" Color="#F0F0F2" />
+      <GradientStop Offset="1" Color="#C9C9CF" />
+    </LinearGradientBrush>
+    <!-- Hero KPI fill: a violet bloom in the top-left corner, fading to panel tone.
+         Only the portfolio tile wears it, so the eye lands on money first. -->
+    <LinearGradientBrush x:Key="SheenHero" StartPoint="0%,0%" EndPoint="85%,100%">
+      <GradientStop Offset="0" Color="#1E1E22" />
+      <GradientStop Offset="0.55" Color="#17171A" />
+      <GradientStop Offset="1" Color="#131316" />
+    </LinearGradientBrush>
+
+    <!-- ── Icons (24x24 grid, solid shapes) ───────────────────── -->
+    <StreamGeometry x:Key="IcoOverview">M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h8v8H3v-8zm10 3h8v5h-8v-5zm0-6h8v4h-8v-4z</StreamGeometry>
+    <StreamGeometry x:Key="IcoAccounts">M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.9 0-7 2-7 4.5V21h14v-3.5C16 15 12.9 13 9 13zm8.5-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm.5 2c-1 0-1.9.2-2.7.5 1.7 1.1 2.7 2.6 2.7 4.3V21h4v-3c0-2.3-2.4-4-4-5z</StreamGeometry>
+    <StreamGeometry x:Key="IcoInventory">M3 6.5 12 2l9 4.5-9 4.5-9-4.5zM3 12l9 4.5L21 12v2.6L12 19l-9-4.4V12zm0 5.4L12 22l9-4.6V20l-9 4.5L3 20v-2.6z</StreamGeometry>
+    <StreamGeometry x:Key="IcoTransfer">M4 8h11V4.5L21 9l-6 4.5V10H4V8zm16 8H9v3.5L3 15l6-4.5V14h11v2z</StreamGeometry>
+    <StreamGeometry x:Key="IcoStats">M4 20V10h4v10H4zm6 0V4h4v16h-4zm6 0v-7h4v7h-4z</StreamGeometry>
+    <StreamGeometry x:Key="IcoDrops">M12 2c3.5 4.2 6 7.6 6 10.6A6 6 0 0 1 6 12.6C6 9.6 8.5 6.2 12 2z</StreamGeometry>
+    <StreamGeometry x:Key="IcoMonke">F1 M378.981 630.916L379.874 978.229L413.135 997.241C431.428 1007.7 484.208 1038.03 530.423 1064.64C576.638 1091.26 617.206 1114.08 620.578 1115.35C626.292 1117.5 626.705 1112.69 626.705 1043.85V970.033L615.326 964.238C582.807 947.67 536.715 917.818 522.861 904.352C514.234 895.97 503.741 881.674 499.543 872.589C492.061 856.385 491.89 852.558 490.913 676.622C490.367 577.932 491.154 497.199 492.663 497.224C494.176 497.245 521.408 520.304 553.181 548.465C655.869 639.477 778.501 747.358 786.55 753.759C794.35 759.963 794.711 759.714 856.713 704.741C984.526 591.422 1093.39 497.182 1096.48 497.182C1098.36 497.182 1099.24 569.672 1098.64 674.871L1097.61 852.561L1087.83 872.484C1074.54 899.531 1049.01 921.722 1001.98 947.096L963.043 968.103L962.927 1042.51C962.868 1083.43 963.747 1116.91 964.884 1116.91C966.022 1116.91 1015.26 1089.15 1074.3 1055.22C1133.33 1021.28 1188.33 989.706 1196.52 985.043L1211.4 976.563V630.083V283.604L1166.76 283.614L1122.12 283.621L1034.59 361.178C986.448 403.834 916.53 466.458 879.211 500.343C841.896 534.229 807.235 565.302 802.186 569.392L793.009 576.832L707 499.366C659.696 456.763 586.193 390.785 543.658 352.754L466.328 283.604H422.206H378.088L378.981 630.916ZM274.073 584.517C197.166 620.899 173.302 717.941 219.556 806.176C240.665 846.441 290.752 885.872 331.733 894.493L343.112 896.884V858.377V819.87L330.917 812.335C301.746 794.304 280.06 754.995 280.126 720.255C280.161 700.28 291.575 671.461 303.727 660.663C310.344 654.781 311.78 654.722 323.908 659.788C331.089 662.788 338.347 665.243 340.038 665.243C341.729 665.243 343.112 644.76 343.112 619.726V574.21L319.479 574.213C300.594 574.213 291.47 576.286 274.073 584.517ZM1246.41 619.278C1246.41 644.557 1247.14 665.243 1248.04 665.243C1248.94 665.243 1255.43 662.498 1262.47 659.14L1275.26 653.041L1286.66 666.227C1319.24 703.915 1309.52 765.789 1264.87 804.94L1246.5 821.05L1246.45 858.755L1246.41 896.46L1256.04 894.388C1261.33 893.246 1277.13 886.678 1291.14 879.791C1364.88 843.535 1407.4 746.427 1383.36 669.182C1365.18 610.759 1327.16 578.131 1273.54 574.931L1246.41 573.31V619.278ZM570.777 754.291C561.097 779.745 571.807 824.064 592.152 842.765C603.811 853.479 623.981 861.314 639.911 861.314C653.867 861.314 678.427 848.199 690.93 834.068C697.253 826.925 697.162 826.445 686.648 811.159C664.08 778.359 624.114 751.616 590.909 747.096C575.273 744.967 574.17 745.363 570.777 754.291ZM973.235 753.895C938.139 768.335 910.816 791.488 896.342 819.051C892.187 826.96 892.981 828.606 907.623 842.439C931.753 865.239 957.479 867.176 986.479 848.37C1012.7 831.368 1029.86 782.676 1019.25 755.401C1014.47 743.108 1000.56 742.653 973.235 753.895ZM726.96 942.099C715.988 950.73 714.944 963.562 724.443 973.061C729.751 978.369 734.323 979.367 746.325 977.841C754.672 976.78 763.47 974.357 765.876 972.456C777.969 962.901 762.115 934.841 744.624 934.841C739.981 934.841 732.033 938.108 726.96 942.099ZM824.362 943.437C809.139 958.657 815.396 975.533 837.593 979.136C855.256 982 868.284 973.569 868.284 959.27C868.284 936.543 841.066 926.729 824.362 943.437ZM868.284 1079.08C816.068 1091.93 773.48 1091.22 700.229 1076.32L687.975 1073.82L694.977 1081.77C706.923 1095.32 729.6 1109.11 753.037 1117.06C783.052 1127.25 821.687 1125.22 848.342 1112.06C866.537 1103.08 899.595 1076.92 896.293 1074.12C895.331 1073.3 882.726 1075.53 868.284 1079.08Z</StreamGeometry>
+    <StreamGeometry x:Key="IcoGroups">M3 4h8v7H3V4zm10 0h8v7h-8V4zM3 13h8v7H3v-7zm10 0h8v7h-8v-7z</StreamGeometry>
+    <StreamGeometry x:Key="IcoConfirm">M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z</StreamGeometry>
+    <StreamGeometry x:Key="IcoIncoming">M12 16 6 10h4V3h4v7h4l-6 6zm-8 3h16v2H4v-2z</StreamGeometry>
+    <StreamGeometry x:Key="IcoProxy">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2c1.4 0 3 2.7 3.4 6H8.6C9 6.7 10.6 4 12 4zM4.3 11h3.1c.1-2.3.6-4.3 1.4-5.7A8 8 0 0 0 4.3 11zm0 2a8 8 0 0 0 4.5 5.7c-.8-1.4-1.3-3.4-1.4-5.7H4.3zm4.3 0h6.8c-.4 3.3-2 6-3.4 6s-3-2.7-3.4-6zm8.8 0h3.1a8 8 0 0 1-4.5 5.7c.8-1.4 1.3-3.4 1.4-5.7zm0-2c-.1-2.3-.6-4.3-1.4-5.7a8 8 0 0 1 4.5 5.7h-3.1z</StreamGeometry>
+    <StreamGeometry x:Key="IcoReview">M11 3a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 11 3zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z</StreamGeometry>
+    <StreamGeometry x:Key="IcoAudit">M6 2h9l5 5v15H6V2zm8 1.5V8h4.5L14 3.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z</StreamGeometry>
+    <!-- Classic 24×24 gear — sits fully inside the rail 16×16 box (old path was cropped). -->
+    <StreamGeometry x:Key="IcoSettings">M19.14,12.94c0.04-0.31,0.06-0.63,0.06-0.94c0-0.31-0.02-0.63-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81C14.34,2.57,14.13,2.4,13.89,2.4h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.22,5.35C8.63,5.59,8.1,5.91,7.6,6.29L5.21,5.33C4.99,5.25,4.74,5.33,4.62,5.54L2.7,8.87C2.58,9.08,2.63,9.34,2.81,9.48l2.03,1.58C4.8,11.37,4.78,11.69,4.78,12s0.02,0.63,0.06,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z</StreamGeometry>
+    <StreamGeometry x:Key="IcoMoney">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm.9 15.4v1.3h-1.6v-1.3c-1.7-.2-2.9-1.2-3-2.7h1.9c.1.7.8 1.2 1.9 1.2s1.8-.4 1.8-1.1c0-.6-.5-.9-1.9-1.2-2-.4-3.4-1-3.4-2.7 0-1.4 1.1-2.4 2.7-2.6V6.9h1.6v1.4c1.6.2 2.7 1.2 2.8 2.6h-1.9c-.1-.7-.7-1.1-1.6-1.1-1 0-1.6.4-1.6 1 0 .6.5.8 1.9 1.1 2.1.5 3.4 1.1 3.4 2.8 0 1.5-1.1 2.5-2.9 2.7z</StreamGeometry>
+    <StreamGeometry x:Key="IcoCase">M9 2h6v2h3a2 2 0 0 1 2 2v3H4V6a2 2 0 0 1 2-2h3V2zm2 2h2V3h-2v1zM4 11h6v2h4v-2h6v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z</StreamGeometry>
+    <StreamGeometry x:Key="IcoAlert">M12 2 1 21h22L12 2zm0 5 7.5 12h-15L12 7zm-1 4v4h2v-4h-2zm0 5v2h2v-2h-2z</StreamGeometry>
+    <StreamGeometry x:Key="IcoUp">M12 5l7 8h-4v6h-6v-6H5l7-8z</StreamGeometry>
+    <StreamGeometry x:Key="IcoDown">M12 19l-7-8h4V5h6v6h4l-7 8z</StreamGeometry>
+    <StreamGeometry x:Key="IcoRefresh">M12 4V1L7.5 5.5 12 10V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z</StreamGeometry>
+    <StreamGeometry x:Key="IcoImport">M12 3v9.6l3.3-3.3 1.4 1.4L12 15.4l-4.7-4.7 1.4-1.4L12 12.6V3h0zM4 18h16v3H4v-3z</StreamGeometry>
+    <StreamGeometry x:Key="IcoClose">M18.3 5.71 12 12.01 5.7 5.71 4.29 7.12 10.59 13.42 4.29 19.71 5.7 21.12 12 14.83 18.29 21.12 19.7 19.71 13.41 13.42 19.7 7.12z</StreamGeometry>
+    <StreamGeometry x:Key="IcoHwid">M9 2h6v2h2a2 2 0 0 1 2 2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2a2 2 0 0 1-2 2h-2v2H9v-2H7a2 2 0 0 1-2-2v-2H3v-2h2v-2H3v-2h2V10H3V8h2V6a2 2 0 0 1 2-2h2V2zm1 6v8h4V8h-4z</StreamGeometry>
+    <StreamGeometry x:Key="IcoLanguage">M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z</StreamGeometry>
+  </Styles.Resources>
+
+  <!-- ══════════════════════════════════════════════════════════
+       BUTTONS
+       ══════════════════════════════════════════════════════════ -->
+
+  <!-- Shared press language: every pressable element answers the pointer -->
+  <Style Selector="Button.primary, Button.accent, Button.ghost, Button.action, Button.danger, Button.icon, Button.soft">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <!-- Accent = the one primary action per region. With no brand hue left, the CTA
+       earns attention by being the brightest object on a black page: light fill,
+       dark text, faint white bloom. Nothing else in the app is this bright. -->
+  <Style Selector="Button.accent">
+    <Setter Property="Background" Value="{StaticResource SheenAccent}" />
+    <Setter Property="Foreground" Value="#0A0A0B" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="16,10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <DoubleTransition Property="Opacity" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <!-- BoxShadow lives on the presenter — Button itself has no such property in Avalonia. -->
+  <Style Selector="Button.accent /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="0 8 24 -12 #59FFFFFF" />
+  </Style>
+  <Style Selector="Button.accent:pointerover">
+    <Setter Property="Background" Value="#FFFFFF" />
+  </Style>
+  <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="0 10 28 -12 #80FFFFFF" />
+  </Style>
+  <Style Selector="Button.accent:pressed">
+    <Setter Property="Background" Value="#C4C4CA" />
+    <Setter Property="RenderTransform" Value="scale(0.97)" />
+  </Style>
+  <Style Selector="Button.accent:pressed /template/ ContentPresenter">
+    <!-- Bloom dies on press: the object is pushed into the surface, so it stops casting -->
+    <Setter Property="BoxShadow" Value="0 0 0 0 #00000000" />
+  </Style>
+  <Style Selector="Button.accent:disabled"><Setter Property="Opacity" Value="0.32" /></Style>
+
+  <!-- Primary = strong secondary. Was "neutral high-contrast", but accent now owns
+       light-on-dark, so this becomes the raised dark pill instead. -->
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="#26262C" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="16,10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.primary /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #14FFFFFF" />
+  </Style>
+  <Style Selector="Button.primary:pointerover"><Setter Property="Background" Value="#303038" /></Style>
+  <Style Selector="Button.primary:pressed">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="RenderTransform" Value="scale(0.97)" />
+  </Style>
+  <Style Selector="Button.primary:disabled"><Setter Property="Opacity" Value="0.32" /></Style>
+
+  <!-- Ghost = outlined secondary -->
+  <Style Selector="Button.ghost">
+    <Setter Property="Background" Value="#131315" />
+    <Setter Property="Foreground" Value="#C8C8CE" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="14,9" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.ghost:pointerover">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="BorderBrush" Value="#33333A" />
+  </Style>
+  <Style Selector="Button.ghost:pressed">
+    <Setter Property="Background" Value="#151517" />
+    <Setter Property="RenderTransform" Value="scale(0.97)" />
+  </Style>
+  <Style Selector="Button.ghost:disabled"><Setter Property="Opacity" Value="0.32" /></Style>
+
+  <!-- Soft = raised secondary, one surface step above the page -->
+  <Style Selector="Button.soft">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="Foreground" Value="#D8D8DE" />
+    <Setter Property="BorderBrush" Value="#35353D" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="14,9" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.soft:pointerover">
+    <Setter Property="Background" Value="#26262C" />
+    <Setter Property="Foreground" Value="#F0F0F2" />
+  </Style>
+  <Style Selector="Button.soft:pressed"><Setter Property="RenderTransform" Value="scale(0.97)" /></Style>
+
+  <!-- Icon button: square, quiet, for toolbar affordances -->
+  <Style Selector="Button.icon">
+    <Setter Property="Background" Value="#131315" />
+    <Setter Property="Foreground" Value="#A2A2A9" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.icon:pointerover">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="BorderBrush" Value="#33333A" />
+  </Style>
+  <Style Selector="Button.icon:pressed"><Setter Property="RenderTransform" Value="scale(0.94)" /></Style>
+
+  <Style Selector="Button.more">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#A2A2A9" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="14,9" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.more:pointerover">
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="BorderBrush" Value="#33333A" />
+  </Style>
+
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="#1E1416" />
+    <Setter Property="Foreground" Value="#E88992" />
+    <Setter Property="BorderBrush" Value="#3A2226" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="14,9" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.danger:pointerover">
+    <Setter Property="Background" Value="#2A181B" />
+    <Setter Property="Foreground" Value="#E0575F" />
+  </Style>
+  <Style Selector="Button.danger:pressed"><Setter Property="RenderTransform" Value="scale(0.97)" /></Style>
+
+  <!-- Action tile: big quick-action card -->
+  <Style Selector="Button.action">
+    <Setter Property="Background" Value="#151517" />
+    <Setter Property="Foreground" Value="#E8E8EC" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="12,15" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.action:pointerover">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+    <Setter Property="Foreground" Value="#F0F0F2" />
+  </Style>
+  <Style Selector="Button.action:pressed"><Setter Property="RenderTransform" Value="scale(0.97)" /></Style>
+
+  <!-- ══════════════════════════════════════════════════════════
+       RAIL — active state = raised fill + bright text
+       (left indicator bar is drawn in the view, not the template)
+       ══════════════════════════════════════════════════════════ -->
+  <Style Selector="Button.rail">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#90909A" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Margin" Value="0,1" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.rail /template/ ContentPresenter">
+    <Setter Property="CornerRadius" Value="10" />
+  </Style>
+  <Style Selector="Button.rail:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+  </Style>
+  <Style Selector="Button.rail.active">
+    <Setter Property="Foreground" Value="#F0F0F2" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.rail.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="Foreground" Value="#F0F0F2" />
+    <!-- The active row is the only lit surface in the rail -->
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #14FFFFFF" />
+  </Style>
+  <Style Selector="Button.rail.active:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#26262C" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <!-- Rail glyph: inherits the button's foreground so it lights up with the row -->
+  <Style Selector="Button.rail Path.glyph">
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="Fill" Value="#7A7A84" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Fill" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.rail:pointerover Path.glyph">
+    <Setter Property="Fill" Value="#E0E0E5" />
+  </Style>
+  <Style Selector="Button.rail.active Path.glyph">
+    <Setter Property="Fill" Value="#C9C9CF" />
+  </Style>
+
+  <!-- Active-row indicator: 3px silver bar pinned to the rail's left edge -->
+  <Style Selector="Button.rail Border.indicator">
+    <Setter Property="Width" Value="3" />
+    <Setter Property="CornerRadius" Value="0,2,2,0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Margin" Value="0,7" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.rail.active Border.indicator">
+    <Setter Property="Background" Value="#EDEDF0" />
+    <!-- Bleeds light into the rail so the bar reads as emitting, not painted -->
+    <Setter Property="BoxShadow" Value="0 0 12 0 #59FFFFFF" />
+  </Style>
+
+  <!-- Generic inline glyph for headers and buttons -->
+  <Style Selector="Path.glyph">
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Fill" Value="#A2A2A9" />
+  </Style>
+
+  <!-- Text safety: Russian labels are longer — never clip into neighboring tiles -->
+  <Style Selector="TextBlock.hero">
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="TextTrimming" Value="None" />
+  </Style>
+  <Style Selector="TextBlock.sub">
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    <Setter Property="MaxLines" Value="3" />
+  </Style>
+  <Style Selector="TextBlock.panel-title">
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    <Setter Property="MaxLines" Value="2" />
+  </Style>
+  <Style Selector="TextBlock.hint">
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBlock.label">
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+  <!-- Buttons: allow multi-line Russian without crushing neighbors -->
+  <Style Selector="Button.ghost, Button.accent, Button.primary, Button.soft, Button.danger, Button.action">
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.action">
+    <Setter Property="Padding" Value="8,10" />
+    <Setter Property="MinHeight" Value="40" />
+  </Style>
+  <Style Selector="Button.pill">
+    <Setter Property="Padding" Value="12,7" />
+  </Style>
+  <Style Selector="Border.glass">
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <Style Selector="Border.stat">
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <Style Selector="Border.card">
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <Style Selector="Border.item">
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <!-- Close buttons: glyph must paint even when Content is only a Path -->
+  <Style Selector="Button.icon Path.glyph">
+    <Setter Property="Width" Value="12" />
+    <Setter Property="Height" Value="12" />
+    <Setter Property="Fill" Value="#A2A2A9" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.icon:pointerover Path.glyph">
+    <Setter Property="Fill" Value="#FAFAFA" />
+  </Style>
+
+  <Style Selector="Button.nav">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#A2A2A9" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+  <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+  </Style>
+  <Style Selector="Button.nav.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="Foreground" Value="#F0F0F2" />
+  </Style>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SEGMENTED CONTROL
+       ══════════════════════════════════════════════════════════ -->
+  <Style Selector="Border.segment">
+    <Setter Property="Background" Value="#0F0F11" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="3" />
+    <!-- Recessed: the track sits below the page, the active pill rises out of it -->
+    <Setter Property="BoxShadow" Value="inset 0 1 2 0 #40000000" />
+  </Style>
+  <Style Selector="Button.pill">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#90909A" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="Padding" Value="13,7" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.pill:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+  </Style>
+  <Style Selector="Button.pill.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="#2C2C33" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+  </Style>
+  <Style Selector="Button.pill.active">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- ToggleButton variant: same pill, but :checked carries the state instead of a binding -->
+  <Style Selector="ToggleButton.pill">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#90909A" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="Padding" Value="13,7" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.pill /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="7" />
+  </Style>
+  <Style Selector="ToggleButton.pill:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+  </Style>
+  <Style Selector="ToggleButton.pill:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="#26262C" />
+    <Setter Property="Foreground" Value="#F0F0F2" />
+  </Style>
+  <Style Selector="ToggleButton.pill:checked:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#2E2E36" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+  <Style Selector="ToggleButton.pill:checked">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- A ghost chip that can be switched on (group selection) -->
+  <Style Selector="Button.ghost.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="BorderBrush" Value="#6C6C75" />
+    <Setter Property="Foreground" Value="#F0F0F2" />
+  </Style>
+  <Style Selector="Button.ghost.active">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- ══════════════════════════════════════════════════════════
+       FIELDS
+       ══════════════════════════════════════════════════════════ -->
+  <Style Selector="ComboBox.field">
+    <Setter Property="Background" Value="#141416" />
+    <Setter Property="BorderBrush" Value="#2C2C33" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="MinHeight" Value="38" />
+  </Style>
+  <Style Selector="ComboBox.field:pointerover">
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+  </Style>
+  <Style Selector="ComboBox.field:focus">
+    <Setter Property="BorderBrush" Value="#55555E" />
+  </Style>
+
+  <Style Selector="TextBox.field">
+    <Setter Property="Background" Value="#0F0F11" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="13,10" />
+    <Setter Property="CaretBrush" Value="#EDEDF0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="SelectionBrush" Value="#26FFFFFF" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="TextBox.field:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#33333A" />
+    <Setter Property="Background" Value="#0F0F11" />
+  </Style>
+  <Style Selector="TextBox.field:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#EDEDF0" />
+    <Setter Property="Background" Value="#0F0F11" />
+  </Style>
+  <Style Selector="TextBox.field:focus-within /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#EDEDF0" />
+    <Setter Property="Background" Value="#0F0F11" />
+  </Style>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SURFACES
+       Depth language: every raised surface gets a 1px top highlight
+       (light reads as coming from above) plus a wide, very soft ambient
+       shadow. That pair is what separates "material" from "flat rectangle".
+       ══════════════════════════════════════════════════════════ -->
+  <Style Selector="Border.glass">
+    <Setter Property="Background" Value="{StaticResource SheenPanel}" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="BoxShadow" Value="0 -1 0 0 #0FFFFFFF, 0 16 40 -20 #C0000000" />
+  </Style>
+
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="#151517" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="BoxShadow" Value="0 -1 0 0 #0AFFFFFF, 0 8 20 -14 #B0000000" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.card:pointerover">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="BorderBrush" Value="#33333A" />
+  </Style>
+
+  <Style Selector="Border.item">
+    <Setter Property="Background" Value="#131315" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="translateY(0px)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <!-- 1px lift on hover: the row rises toward the pointer instead of just tinting -->
+  <Style Selector="Border.item:pointerover">
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+    <Setter Property="Background" Value="#17171A" />
+    <Setter Property="RenderTransform" Value="translateY(-1px)" />
+  </Style>
+
+  <!-- KPI stat tile -->
+  <Style Selector="Border.stat">
+    <Setter Property="Background" Value="{StaticResource SheenPanel}" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="16,15" />
+    <Setter Property="BoxShadow" Value="0 -1 0 0 #0FFFFFFF, 0 16 40 -20 #C0000000" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.16" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.stat:pointerover">
+    <Setter Property="BorderBrush" Value="#34343C" />
+  </Style>
+
+  <!-- .hero variant: the portfolio tile. Same geometry, lifted fill, brighter edge and
+       a white bloom. Four identical tiles have no hierarchy; one lit tile creates it. -->
+  <Style Selector="Border.stat.hero">
+    <Setter Property="Background" Value="{StaticResource SheenHero}" />
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+    <Setter Property="BoxShadow" Value="0 -1 0 0 #1AFFFFFF, 0 16 44 -20 #C0000000, 0 0 34 -12 #33FFFFFF" />
+  </Style>
+  <Style Selector="Border.stat.hero:pointerover">
+    <Setter Property="BorderBrush" Value="#4A4A52" />
+  </Style>
+
+  <!-- Icon chip inside a KPI tile -->
+  <Style Selector="Border.staticon">
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="BorderBrush" Value="#35353D" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="Border.modal">
+    <Setter Property="Background" Value="#151517" />
+    <Setter Property="BorderBrush" Value="#303038" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="BoxShadow" Value="0 32 80 0 #99000000, 0 2 0 0 #14FFFFFF" />
+    <Setter Property="Padding" Value="24" />
+  </Style>
+
+  <Style Selector="Border.selection-bar">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="14,11" />
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #14FFFFFF, 0 10 28 -16 #4DFFFFFF" />
+  </Style>
+
+  <Style Selector="Border.home-skin">
+    <Setter Property="Background" Value="#131315" />
+    <Setter Property="BorderBrush" Value="#26262C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="ClipToBounds" Value="True" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="translateY(0px)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.home-skin:pointerover">
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+    <Setter Property="Background" Value="#17171A" />
+    <Setter Property="RenderTransform" Value="translateY(-2px)" />
+  </Style>
+
+  <Style Selector="Border.chip">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="BorderBrush" Value="#303038" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="Padding" Value="11,5" />
+  </Style>
+  <Style Selector="Border.chip.accent">
+    <Setter Property="Background" Value="#1E1E22" />
+    <Setter Property="BorderBrush" Value="#3A3A42" />
+  </Style>
+
+  <!-- Hairline divider -->
+  <Style Selector="Border.divider">
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Background" Value="#1F1F24" />
+  </Style>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TYPE
+       ══════════════════════════════════════════════════════════ -->
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+  </Style>
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#6C6C75" />
+    <Setter Property="LetterSpacing" Value="0.9" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+  <Style Selector="TextBlock.hero">
+    <Setter Property="FontSize" Value="27" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="LetterSpacing" Value="-0.5" />
+  </Style>
+  <Style Selector="TextBlock.sub">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="#A2A2A9" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="MaxWidth" Value="640" />
+    <!-- MaxWidth alone leaves the block Stretch-aligned, so the layout centres the
+         clamped 640px inside the full column and the subtitle drifts right of the
+         title it belongs to. Pinning Left keeps the two flush. -->
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="LineHeight" Value="19" />
+  </Style>
+  <Style Selector="TextBlock.metric">
+    <Setter Property="FontSize" Value="25" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="LetterSpacing" Value="-0.6" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+  <!-- Panel heading: sits above charts and lists -->
+  <Style Selector="TextBlock.panel-title">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#FAFAFA" />
+    <Setter Property="LetterSpacing" Value="-0.1" />
+  </Style>
+  <Style Selector="TextBlock.money">
+    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.up">
+    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style Selector="TextBlock.down">
+    <Setter Property="Foreground" Value="#E0575F" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style Selector="TextBlock.hint">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#6C6C75" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <!-- ══════════════════════════════════════════════════════════
+       CONTROLS — recolored to brand, away from Fluent blue
+       ══════════════════════════════════════════════════════════ -->
+  <Style Selector="MenuFlyoutPresenter">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="BorderBrush" Value="#303038" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="6" />
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="Foreground" Value="#C8C8CE" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Padding" Value="11,8" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="#1E1E22" />
+  </Style>
+  <Style Selector="MenuItem.danger"><Setter Property="Foreground" Value="#E88992" /></Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="#C8C8CE" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="CheckBox /template/ Border#NormalRectangle">
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Background" Value="#0F0F11" />
+    <Setter Property="BorderBrush" Value="#33333A" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
+    <Setter Property="BorderBrush" Value="#6C6C75" />
+  </Style>
+  <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+    <Setter Property="Background" Value="#EDEDF0" />
+    <Setter Property="BorderBrush" Value="#EDEDF0" />
+  </Style>
+  <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
+    <Setter Property="Background" Value="#FFFFFF" />
+    <Setter Property="BorderBrush" Value="#FFFFFF" />
+  </Style>
+  <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
+    <!-- Box is silver when checked, so the tick has to be the page black to be seen -->
+    <Setter Property="Fill" Value="#0A0A0B" />
+  </Style>
+
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0,0,0,4" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="ProgressBar">
+    <Setter Property="Foreground" Value="#EDEDF0" />
+    <Setter Property="Background" Value="#1F1F24" />
+    <Setter Property="MinHeight" Value="4" />
+    <Setter Property="CornerRadius" Value="2" />
+  </Style>
+
+  <Style Selector="ScrollBar">
+    <Setter Property="Width" Value="9" />
+    <Setter Property="Opacity" Value="0.45" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.16" Easing="{StaticResource EaseOut}" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="ScrollBar:pointerover"><Setter Property="Opacity" Value="0.9" /></Style>
+  <Style Selector="ScrollViewer"><Setter Property="AllowAutoHide" Value="True" /></Style>
+
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="#1B1B1F" />
+    <Setter Property="BorderBrush" Value="#303038" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Foreground" Value="#E8E8EC" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Padding" Value="10,6" />
+  </Style>
+</Styles>

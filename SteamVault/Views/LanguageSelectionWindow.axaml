@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SteamVault.Views.LanguageSelectionWindow"
+        Title="SilverManager"
+        Width="520" Height="340"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="#0A0A0B">
+  <Border Padding="36" Background="#0A0A0B">
+    <StackPanel Spacing="14" VerticalAlignment="Center">
+      <TextBlock Text="SilverManager" FontSize="28" FontWeight="SemiBold" Foreground="#FAFAFA" />
+      <TextBlock Text="Choose language / Выберите язык" FontSize="16" Foreground="#C8C8CE" TextWrapping="Wrap" />
+      <TextBlock Text="You can change this later · Можно сменить позже" FontSize="12" Foreground="#8A8A92" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,12,0,0">
+        <Button Classes="accent" Content="English" Click="ChooseEnglish" MinWidth="190" MinHeight="46" Padding="16,10" />
+        <Button Classes="primary" Content="Русский" Click="ChooseRussian" MinWidth="190" MinHeight="46" Padding="16,10" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>
