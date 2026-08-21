@@ -115,6 +115,13 @@
                   <TextBlock Grid.Column="2" Text="{Binding Ui.NavTransfer}" VerticalAlignment="Center" Margin="0,10,10,10"/>
                 </Grid>
               </Button>
+              <Button x:Name="RailMarket" Classes="rail" Command="{Binding OpenMarketCommand}">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                  <Border Classes="indicator"/>
+                  <Path Grid.Column="1" Classes="glyph" Data="{StaticResource IcoTransfer}" Margin="11,0,11,0"/>
+                  <TextBlock Grid.Column="2" Text="Market CSGO" VerticalAlignment="Center" Margin="0,10,10,10"/>
+                </Grid>
+              </Button>
 
               <TextBlock Text="{Binding Ui.LabelAnalyse}" Classes="label" Margin="13,16,0,7"/>
               <Button x:Name="RailStats" Classes="rail" Command="{Binding GoStatsCommand}">
@@ -1683,6 +1690,149 @@
               <StackPanel Spacing="8">
                 <TextBlock Text="{Binding Ui.AutoFarmFitTitle}" Classes="panel-title"/>
                 <TextBlock Classes="hint" TextWrapping="Wrap" Text="{Binding Ui.AutoFarmFitBody}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ════════════════ MARKET CSGO (market.csgo.com) ════════════════ -->
+        <ScrollViewer IsVisible="{Binding IsMarket}">
+          <StackPanel Margin="30,24,30,30" Spacing="18" MaxWidth="960">
+            <StackPanel Spacing="3">
+              <TextBlock Text="Market CSGO (market.csgo.com)" Classes="hero"/>
+              <TextBlock Text="Автоматическая продажа скинов с ферм-аккаунтов и консолидация баланса через money-send" Classes="sub"/>
+            </StackPanel>
+
+            <!-- Summary Top Cards -->
+            <Grid ColumnDefinitions="*,*,*">
+              <Border Classes="glass" Padding="18" Margin="0,0,8,0">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="ДОСТУПНЫЙ БАЛАНС" FontSize="11" FontWeight="Bold" Foreground="#8E8E93" LetterSpacing="0.5"/>
+                  <TextBlock Text="{Binding MarketTotalAvailable, StringFormat='{}{0:0.00} RUB'}" FontSize="22" FontWeight="Bold" Foreground="#4CD964"/>
+                  <TextBlock Text="Готово к переводу на главный аккаунт" FontSize="11" Foreground="#6C6C75"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Classes="glass" Padding="18" Margin="4,0,4,0">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="В ЗАМОРОЗКЕ (7 ДНЕЙ)" FontSize="11" FontWeight="Bold" Foreground="#8E8E93" LetterSpacing="0.5"/>
+                  <TextBlock Text="{Binding MarketTotalFrozen, StringFormat='{}{0:0.00} RUB'}" FontSize="22" FontWeight="Bold" Foreground="#FF9500"/>
+                  <TextBlock Text="Холдинг безопасности Маркета после продаж" FontSize="11" Foreground="#6C6C75"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="2" Classes="glass" Padding="18" Margin="8,0,0,0">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="АККАУНТЫ С API KEY" FontSize="11" FontWeight="Bold" Foreground="#8E8E93" LetterSpacing="0.5"/>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding MarketAccountsWithKeyCount}" FontSize="22" FontWeight="Bold" Foreground="#FAFAFA"/>
+                    <TextBlock Text="{Binding Accounts.Count, StringFormat='{}из {0}'}" FontSize="16" Foreground="#8E8E93" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                  </StackPanel>
+                  <TextBlock Text="Аккаунты с настроенными ключами Маркета" FontSize="11" Foreground="#6C6C75"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <!-- Target Receiver & Strategy Settings Panel -->
+            <Border Classes="glass" Padding="20">
+              <StackPanel Spacing="16">
+                <TextBlock Text="НАСТРОЙКИ ПРИЁМА И СТРАТЕГИЙ" FontSize="14" FontWeight="Bold" Foreground="#FAFAFA"/>
+
+                <Grid ColumnDefinitions="*,*">
+                  <StackPanel Margin="0,0,12,0" Spacing="12">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Целевой API Key получателя ([user_api_key]):" FontSize="12" Foreground="#C9C9CF"/>
+                      <TextBox Text="{Binding Settings.TargetMarketApiKey}" Watermark="Сюда придут все переводы money-send" Height="36"/>
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Платёжный пароль ([pay_pass]):" FontSize="12" Foreground="#C9C9CF"/>
+                      <TextBox Text="{Binding Settings.MarketPaymentPassword}" PasswordChar="•" Watermark="Постоянный платёжный пароль отправки" Height="36"/>
+                    </StackPanel>
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="12">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Стратегия цены при выставлении:" FontSize="12" Foreground="#C9C9CF"/>
+                      <ComboBox SelectedIndex="{Binding Settings.MarketPricingStrategy}" HorizontalAlignment="Stretch" Height="36">
+                        <ComboBoxItem Content="На 1 копейку дешевле минимального лота (-0.01 RUB)"/>
+                        <ComboBoxItem Content="По автозакупу (Instant Buy Order)"/>
+                      </ComboBox>
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Режим перевода баланса:" FontSize="12" Foreground="#C9C9CF"/>
+                      <ComboBox SelectedIndex="{Binding Settings.MarketTransferMode}" HorizontalAlignment="Stretch" Height="36">
+                        <ComboBoxItem Content="Холдить баланс на аккаунтах (ручной вывод)"/>
+                        <ComboBoxItem Content="Автоперевод на главный аккаунт (повтор каждые 10 часов)"/>
+                      </ComboBox>
+                    </StackPanel>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <!-- Action Controls Bar -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+              <Button Classes="accent" Command="{Binding BulkSellOnMarketAsyncCommand}" IsEnabled="{Binding !IsMarketBusy}" Padding="18,10">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="🚀 Продать предметы на Market CSGO" FontWeight="Bold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Column="1" Classes="secondary" Command="{Binding ConsolidateMarketBalancesAsyncCommand}" IsEnabled="{Binding !IsMarketBusy}" Margin="10,0,0,0" Padding="18,10">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="💸 Перевести доступные балансы сейчас" FontWeight="Bold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Column="3" Classes="ghost" Command="{Binding RefreshMarketBalancesAsyncCommand}" IsEnabled="{Binding !IsMarketBusy}" Padding="14,10">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="🔄 Обновить балансы"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+
+            <!-- Real-time Market Log Box -->
+            <Border Background="#121216" CornerRadius="8" Padding="14" BorderBrush="#26262F" BorderThickness="1">
+              <SelectableTextBlock Text="{Binding MarketLogText}" FontFamily="Consolas, Monospace, Courier New" FontSize="12" Foreground="#00E676" TextWrapping="Wrap"/>
+            </Border>
+
+            <!-- Accounts Table with Market Balances -->
+            <Border Classes="glass" Padding="16">
+              <StackPanel Spacing="12">
+                <TextBlock Text="АККАУНТЫ И БАЛАНСЫ MARKET CSGO" FontSize="13" FontWeight="Bold" Foreground="#EDEDF0"/>
+
+                <ItemsControl ItemsSource="{Binding Accounts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="item" Padding="12,10" Margin="0,0,0,6">
+                        <Grid ColumnDefinitions="160,130,130,120,*">
+                          <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Login}" FontWeight="Bold" Foreground="#FAFAFA"/>
+                            <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="#8E8E93"/>
+                          </StackPanel>
+
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="ДОСТУПНО" FontSize="10" Foreground="#8E8E93"/>
+                            <TextBlock Text="{Binding MarketAvailableBalance, StringFormat='{}{0:0.00} RUB'}" FontWeight="Bold" Foreground="#4CD964"/>
+                          </StackPanel>
+
+                          <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="ЗАМОРОЗКА (7D)" FontSize="10" Foreground="#8E8E93"/>
+                            <TextBlock Text="{Binding MarketFrozenBalance, StringFormat='{}{0:0.00} RUB'}" FontWeight="Bold" Foreground="#FF9500"/>
+                          </StackPanel>
+
+                          <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                            <TextBlock Text="ПРЕДМЕТЫ" FontSize="10" Foreground="#8E8E93"/>
+                            <TextBlock Text="{Binding InventoryCount, StringFormat='{}{0} шт.'}" FontSize="12" Foreground="#EDEDF0"/>
+                          </StackPanel>
+
+                          <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                            <TextBlock Text="MARKET API KEY" FontSize="10" Foreground="#8E8E93" Margin="0,0,0,2"/>
+                            <TextBox Text="{Binding MarketApiKey}" Watermark="Вставьте Market API key для этого аккаунта" Height="30" FontSize="11"/>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </StackPanel>
             </Border>
           </StackPanel>

@@ -58,6 +58,16 @@ public partial class SteamAccount : ObservableObject
     /// <summary>Per-account proxy (remembered in accounts.json). Same string on N accounts = shared proxy.</summary>
     [ObservableProperty] private string? _proxy;
 
+    /// <summary>Market CSGO (market.csgo.com) API Secret Key for this account.</summary>
+    [ObservableProperty] private string? _marketApiKey;
+    [ObservableProperty] private decimal _marketAvailableBalance;
+    [ObservableProperty] private decimal _marketFrozenBalance;
+    [ObservableProperty] private string _marketCurrency = "RUB";
+
+    public bool HasMarketApiKey => !string.IsNullOrWhiteSpace(MarketApiKey);
+
+    partial void OnMarketApiKeyChanged(string? value) => OnPropertyChanged(nameof(HasMarketApiKey));
+
     /// <summary>Last checker result for this account's proxy (UI only, not persisted).</summary>
     [ObservableProperty] private bool? _proxyCheckOk;
     [ObservableProperty] private int _proxyCheckMs;

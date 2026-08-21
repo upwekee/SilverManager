@@ -66,6 +66,7 @@ public sealed class AccountStore
                     BannedAt = s.BannedAt,
                     FailStreak = s.FailStreak,
                     Proxy = s.Proxy,
+                    MarketApiKey = s.MarketApiKey,
                     IsWarehouse = s.IsWarehouse,
                     OwnTradeUrl = s.OwnTradeUrl,
                     MaFilePath = s.MaFilePath
@@ -107,6 +108,7 @@ public sealed class AccountStore
             BannedAt = a.BannedAt,
             FailStreak = a.FailStreak,
             Proxy = a.Proxy,
+            MarketApiKey = a.MarketApiKey,
             IsWarehouse = a.IsWarehouse,
             OwnTradeUrl = a.OwnTradeUrl,
             MaFilePath = a.MaFilePath
@@ -266,6 +268,7 @@ public sealed class AccountStore
         public DateTime? BannedAt { get; set; }
         public int FailStreak { get; set; }
         public string? Proxy { get; set; }
+        public string? MarketApiKey { get; set; }
         public bool IsWarehouse { get; set; }
         public string? OwnTradeUrl { get; set; }
         public string? MaFilePath { get; set; }

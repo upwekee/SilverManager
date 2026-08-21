@@ -476,6 +476,7 @@ public partial class MainViewModel : ViewModelBase
     public bool IsSettings => ShellPage == (int)Models.ShellPage.Settings;
     public bool IsHwid => ShellPage == (int)Models.ShellPage.Hwid;
     public bool IsAutoFarm => ShellPage == (int)Models.ShellPage.AutoFarm;
+    public bool IsMarket => ShellPage == (int)Models.ShellPage.Market;
     /// <summary>Blocked or missing maFile only — proxy is optional.</summary>
     public int AttentionCount => Accounts.Count(a => a.IsBlocked || !a.HasMaFile || a.ProxyCheckOk == false);
     public int ReadyAccountCount => Accounts.Count(a => a.CanTrade && a.InventoryCount > 0);
@@ -742,6 +743,8 @@ public partial class MainViewModel : ViewModelBase
             catch { /* */ }
         };
 
+        InitMarket10hTimer();
+
         Dispatcher.UIThread.Post(() =>
         {
             try
@@ -909,6 +912,7 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsHwid));
         OnPropertyChanged(nameof(IsAutoFarm));
+        OnPropertyChanged(nameof(IsMarket));
         PageTransition = true;
         Dispatcher.UIThread.Post(async () =>
         {
@@ -5428,5 +5432,220 @@ public partial class MainViewModel : ViewModelBase
             var clip = TopLevel.GetTopLevel(w)?.Clipboard;
             if (clip != null) await clip.SetTextAsync(text);
         }
+    }
+
+    // ---- Market CSGO (market.csgo.com) Section ----
+    private readonly MarketCsgoService _marketSvc = new();
+    private DispatcherTimer? _market10hTimer;
+
+    [ObservableProperty] private decimal _marketTotalAvailable;
+    [ObservableProperty] private decimal _marketTotalFrozen;
+    [ObservableProperty] private string _marketLogText = "Market CSGO ready.";
+    [ObservableProperty] private bool _isMarketBusy;
+
+    public int MarketAccountsWithKeyCount => Accounts.Count(a => a.HasMarketApiKey);
+
+    public void RecalcMarketTotals()
+    {
+        MarketTotalAvailable = Accounts.Sum(a => a.MarketAvailableBalance);
+        MarketTotalFrozen = Accounts.Sum(a => a.MarketFrozenBalance);
+        OnPropertyChanged(nameof(MarketAccountsWithKeyCount));
+    }
+
+    [RelayCommand]
+    private void OpenMarket()
+    {
+        ShellPage = (int)Models.ShellPage.Market;
+    }
+
+    [RelayCommand]
+    private async Task RefreshMarketBalancesAsync()
+    {
+        IsMarketBusy = true;
+        MarketLogText = "Fetching Market CSGO balances...";
+        try
+        {
+            var count = 0;
+            foreach (var acc in Accounts)
+            {
+                if (string.IsNullOrWhiteSpace(acc.MarketApiKey)) continue;
+                var info = await _marketSvc.GetMoneyAsync(acc.MarketApiKey);
+                if (info.Success)
+                {
+                    acc.MarketAvailableBalance = info.Available;
+                    acc.MarketFrozenBalance = info.Settlement;
+                    acc.MarketCurrency = info.Currency;
+                    count++;
+                }
+                else
+                {
+                    Log($"{acc.Login}: Market get-money failed ({info.Error})", LogLevel.Warning);
+                }
+            }
+            RecalcMarketTotals();
+            MarketLogText = $"Updated Market balances for {count} accounts. Total Available: {MarketTotalAvailable:0.00} RUB | Frozen (7d): {MarketTotalFrozen:0.00} RUB";
+        }
+        catch (Exception ex)
+        {
+            MarketLogText = "Market balances error: " + ex.Message;
+        }
+        finally
+        {
+            IsMarketBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task BulkSellOnMarketAsync()
+    {
+        var targetAccounts = Accounts.Where(a => a.IsSelected && a.HasMarketApiKey).ToList();
+        if (targetAccounts.Count == 0)
+            targetAccounts = Accounts.Where(a => a.HasMarketApiKey).ToList();
+
+        if (targetAccounts.Count == 0)
+        {
+            MarketLogText = "No accounts with Market API key found! Please add a Market API Key in Account settings.";
+            return;
+        }
+
+        IsMarketBusy = true;
+        MarketLogText = $"Starting bulk sell on Market CSGO for {targetAccounts.Count} account(s)...";
+        var soldCount = 0;
+        var failCount = 0;
+
+        try
+        {
+            foreach (var acc in targetAccounts)
+            {
+                var apiKey = acc.MarketApiKey!;
+                await _marketSvc.UpdateInventoryAsync(apiKey);
+
+                var accItems = Items.Where(i => i.AccountId == acc.Id && i.Tradable && !i.IsPermanentlyUntradable).ToList();
+                MarketLogText = $"{acc.Login}: Found {accItems.Count} tradable item(s) for sale...";
+
+                foreach (var item in accItems)
+                {
+                    var priceInfo = await _marketSvc.GetItemBestPricesAsync(apiKey, item.MarketHashName);
+                    long targetKopecks = 0;
+
+                    if (Settings.MarketPricingStrategy == 1) // Quick Sell (Instant Buy Order)
+                    {
+                        targetKopecks = priceInfo.BestBuyOrderKopecks > 0 ? priceInfo.BestBuyOrderKopecks : (long)(item.Price * 100);
+                    }
+                    else // Undercut by 1 kopeck
+                    {
+                        targetKopecks = priceInfo.LowestSellKopecks > 1 ? priceInfo.LowestSellKopecks - 1 : (long)(item.Price * 100);
+                    }
+
+                    if (targetKopecks <= 0) targetKopecks = 100; // fallback 1.00 RUB
+
+                    var res = await _marketSvc.AddToSaleAsync(apiKey, item.AssetId, targetKopecks, "RUB");
+                    if (res.Success)
+                    {
+                        soldCount++;
+                        MarketLogText = $"{acc.Login}: Listed '{item.MarketHashName}' for {targetKopecks / 100.0:0.00} RUB (ID: {res.ItemId})";
+                    }
+                    else
+                    {
+                        failCount++;
+                        MarketLogText = $"{acc.Login}: Failed to list '{item.MarketHashName}' ({res.Error})";
+                    }
+                    await Task.Delay(350);
+                }
+            }
+            MarketLogText = $"Bulk sell finished: {soldCount} item(s) listed, {failCount} failed.";
+        }
+        catch (Exception ex)
+        {
+            MarketLogText = "Bulk sell error: " + ex.Message;
+        }
+        finally
+        {
+            IsMarketBusy = false;
+            await RefreshMarketBalancesAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task ConsolidateMarketBalancesAsync()
+    {
+        var targetKey = Settings.TargetMarketApiKey?.Trim();
+        var payPass = Settings.MarketPaymentPassword?.Trim();
+
+        if (string.IsNullOrWhiteSpace(targetKey))
+        {
+            MarketLogText = "Error: Target Receiver Market API Key is missing in Market Settings!";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(payPass))
+        {
+            MarketLogText = "Error: Payment Password (pay_pass) is required for money-send transfers!";
+            return;
+        }
+
+        IsMarketBusy = true;
+        MarketLogText = "Checking sender account balances for available ready funds...";
+
+        try
+        {
+            await RefreshMarketBalancesAsync();
+            var senders = Accounts.Where(a => a.HasMarketApiKey && a.MarketAvailableBalance > 0.01m).ToList();
+
+            if (senders.Count == 0)
+            {
+                MarketLogText = "No available (unfrozen) balances found on sender accounts. Funds may still be in 7-day settlement hold.";
+                return;
+            }
+
+            var successCount = 0;
+            var failCount = 0;
+
+            foreach (var acc in senders)
+            {
+                var kopecks = (long)(acc.MarketAvailableBalance * 100);
+                if (kopecks <= 0) continue;
+
+                MarketLogText = $"{acc.Login}: Sending {acc.MarketAvailableBalance:0.00} RUB to target receiver key...";
+                var res = await _marketSvc.MoneySendAsync(acc.MarketApiKey!, targetKey, kopecks, payPass);
+
+                if (res.Success)
+                {
+                    successCount++;
+                    Log($"{acc.Login}: Successfully transferred {acc.MarketAvailableBalance:0.00} RUB via Market money-send", LogLevel.Success);
+                    acc.MarketAvailableBalance = 0;
+                }
+                else
+                {
+                    failCount++;
+                    Log($"{acc.Login}: Market money-send failed ({res.Error}) — will retry in 10 hours", LogLevel.Warning);
+                }
+                await Task.Delay(500);
+            }
+
+            RecalcMarketTotals();
+            MarketLogText = $"Balance consolidation complete: {successCount} transferred, {failCount} failed/pending (auto-retries in 10h if active).";
+        }
+        catch (Exception ex)
+        {
+            MarketLogText = "Balance transfer error: " + ex.Message;
+        }
+        finally
+        {
+            IsMarketBusy = false;
+        }
+    }
+
+    private void InitMarket10hTimer()
+    {
+        _market10hTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(10) };
+        _market10hTimer.Tick += async (_, _) =>
+        {
+            if (Settings.MarketTransferMode == 1) // Auto-transfer & retry
+            {
+                Log("10-Hour Market Auto-Transfer Scheduler triggered...", LogLevel.Info);
+                await ConsolidateMarketBalancesAsync();
+            }
+        };
+        _market10hTimer.Start();
     }
 }

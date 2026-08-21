@@ -85,6 +85,7 @@ public enum ShellPage
     Home = 0,
     Inventory = 1,
     Transfer = 2,
+    Market = 8,
     // Advanced (secondary)
     Confirmations = 10,
     Incoming = 11,

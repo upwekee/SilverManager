@@ -86,6 +86,12 @@ public partial class AppSettings : ObservableObject
     /// <summary>Extra pause between accounts in transfer queue (ms).</summary>
     [ObservableProperty] private int _betweenAccountsDelayMs = 3500;
 
+    // Market CSGO Settings
+    [ObservableProperty] private string _targetMarketApiKey = "";
+    [ObservableProperty] private string _marketPaymentPassword = "";
+    [ObservableProperty] private int _marketPricingStrategy; // 0 = Undercut by 1 kopeck, 1 = Instant Buy Order
+    [ObservableProperty] private int _marketTransferMode; // 0 = Hold Balances, 1 = Auto-Transfer & Retry Every 10h
+
     public static AppSettings Load()
     {
         try
