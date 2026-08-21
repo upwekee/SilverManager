@@ -279,11 +279,32 @@ public sealed class SteamSession : IDisposable
         if (string.IsNullOrEmpty(steamId))
             throw new InvalidOperationException("Missing SteamID64 — sign in to the account or add steamid to maFile");
 
+        // If account has credentials, ensure session login first so Steam returns FULL inventory including Trade-Protected items
+        if (!IsOnline && (!string.IsNullOrEmpty(_account.Password) || _account.HasMaFile))
+        {
+            try
+            {
+                await LoginAsync(ct: ct);
+            }
+            catch { /* fallback to public fetch if login fails */ }
+        }
+
+        if (IsOnline)
+        {
+            try
+            {
+                return await FetchInventoryJsonAsync(steamId, useCookies: true, ct);
+            }
+            catch { /* fallback to public below */ }
+        }
+
+        // Public unauthenticated fallback
         Exception? publicErr = null;
         try
         {
-            // Public inventory — fast, no SteamKit login
-            return await FetchInventoryJsonAsync(steamId, useCookies: false, ct);
+            var publicInv = await FetchInventoryJsonAsync(steamId, useCookies: false, ct);
+            // If public fetch returned items, return them
+            if (publicInv.Count > 0) return publicInv;
         }
         catch (Exception ex)
         {
@@ -291,17 +312,19 @@ public sealed class SteamSession : IDisposable
         }
 
         if (!IsOnline)
+        {
+            // Attempt login once more if public fetch failed
+            if (!string.IsNullOrEmpty(_account.Password) || _account.HasMaFile)
+            {
+                await LoginAsync(ct: ct);
+                return await FetchInventoryJsonAsync(steamId, useCookies: true, ct);
+            }
+
             throw new InvalidOperationException(
                 $"Inventory is not publicly available ({publicErr?.Message}). Sign in, then load it again.");
+        }
 
-        try
-        {
-            return await FetchInventoryJsonAsync(steamId, useCookies: true, ct);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Inventory after sign-in: {ex.Message} (public: {publicErr?.Message})", ex);
-        }
+        return await FetchInventoryJsonAsync(steamId, useCookies: true, ct);
     }
 
     private static string Trim(string s, int n) => s.Length <= n ? s : s[..n];
@@ -327,38 +350,77 @@ public sealed class SteamSession : IDisposable
             if (!string.IsNullOrEmpty(startAsset))
                 url += $"&start_assetid={startAsset}";
 
-            using var resp = await http.GetAsync(url, ct);
-            var body = await resp.Content.ReadAsStringAsync(ct);
-
-            if (resp.StatusCode == HttpStatusCode.Forbidden || (int)resp.StatusCode == 401)
-                throw new Exception("Inventory is private — click Login");
-
-            if (!resp.IsSuccessStatusCode)
-                throw new Exception($"Inventory HTTP {(int)resp.StatusCode}: {Trim(body, 100)}");
-
-            if (string.IsNullOrWhiteSpace(body) || body.TrimStart().StartsWith('<'))
-                throw new Exception("Steam returned HTML instead of JSON (rate limit / login wall)");
-
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("success", out var success))
+            HttpResponseMessage resp;
+            try
             {
-                var ok = success.ValueKind == JsonValueKind.Number
-                    ? success.GetInt32() == 1
-                    : success.ValueKind == JsonValueKind.True;
-                if (!ok)
-                    throw new Exception("success=0 — inventory is private or Steam returned an error");
+                resp = await http.GetAsync(url, ct);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Network error fetching inventory: {ex.Message}", ex);
             }
 
-            var batch = ParseInventoryPage(root);
-            all.AddRange(batch);
+            using (resp)
+            {
+                // Auto-retry once on HTTP 429 (RateLimit)
+                if ((int)resp.StatusCode == 429)
+                {
+                    await Task.Delay(2500, ct);
+                    using var retryResp = await http.GetAsync(url, ct);
+                    var retryBody = await retryResp.Content.ReadAsStringAsync(ct);
 
-            var more = root.TryGetProperty("more_items", out var mi) &&
-                       (mi.ValueKind == JsonValueKind.Number ? mi.GetInt32() == 1 : mi.GetBoolean());
-            startAsset = more && root.TryGetProperty("last_assetid", out var la)
-                ? la.ToString()
-                : null;
+                    if (!retryResp.IsSuccessStatusCode)
+                        throw new Exception($"Inventory HTTP {(int)retryResp.StatusCode}: {Trim(retryBody, 100)}");
+
+                    if (string.IsNullOrWhiteSpace(retryBody) || retryBody.TrimStart().StartsWith('<'))
+                        throw new Exception("Steam returned HTML instead of JSON (rate limit / login wall)");
+
+                    using var retryDoc = JsonDocument.Parse(retryBody);
+                    var retryRoot = retryDoc.RootElement;
+
+                    var retryBatch = ParseInventoryPage(retryRoot);
+                    all.AddRange(retryBatch);
+
+                    var retryMore = retryRoot.TryGetProperty("more_items", out var rmi) &&
+                               (rmi.ValueKind == JsonValueKind.Number ? rmi.GetInt32() == 1 : rmi.GetBoolean());
+                    startAsset = retryMore && retryRoot.TryGetProperty("last_assetid", out var rla)
+                        ? rla.ToString()
+                        : null;
+                    continue;
+                }
+
+                var body = await resp.Content.ReadAsStringAsync(ct);
+
+                if (resp.StatusCode == HttpStatusCode.Forbidden || (int)resp.StatusCode == 401)
+                    throw new Exception("Inventory is private — click Login");
+
+                if (!resp.IsSuccessStatusCode)
+                    throw new Exception($"Inventory HTTP {(int)resp.StatusCode}: {Trim(body, 100)}");
+
+                if (string.IsNullOrWhiteSpace(body) || body.TrimStart().StartsWith('<'))
+                    throw new Exception("Steam returned HTML instead of JSON (rate limit / login wall)");
+
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("success", out var success))
+                {
+                    var ok = success.ValueKind == JsonValueKind.Number
+                        ? success.GetInt32() == 1
+                        : success.ValueKind == JsonValueKind.True;
+                    if (!ok)
+                        throw new Exception("success=0 — inventory is private or Steam returned an error");
+                }
+
+                var batch = ParseInventoryPage(root);
+                all.AddRange(batch);
+
+                var more = root.TryGetProperty("more_items", out var mi) &&
+                           (mi.ValueKind == JsonValueKind.Number ? mi.GetInt32() == 1 : mi.GetBoolean());
+                startAsset = more && root.TryGetProperty("last_assetid", out var la)
+                    ? la.ToString()
+                    : null;
+            }
         } while (!string.IsNullOrEmpty(startAsset));
 
         return all;
@@ -464,25 +526,58 @@ public sealed class SteamSession : IDisposable
                 }
             }
 
-            // Trade hold: "Tradable After Mon May 01 00:00:00 2026" in owner_descriptions
-            if (desc.ValueKind != JsonValueKind.Undefined &&
-                desc.TryGetProperty("owner_descriptions", out var ods) &&
-                ods.ValueKind == JsonValueKind.Array)
+            // Trade hold / Trade protection check (CS2 7-day trade protection support)
+            bool isTradeProtectedTag = false;
+            if (desc.ValueKind != JsonValueKind.Undefined)
             {
-                foreach (var od in ods.EnumerateArray())
+                // Check tags for "Trade Protected"
+                if (desc.TryGetProperty("tags", out var tagsEl) && tagsEl.ValueKind == JsonValueKind.Array)
                 {
-                    var val = GetStr(od, "value") ?? "";
-                    if (val.Contains("Tradable After", StringComparison.OrdinalIgnoreCase) ||
-                        val.Contains("Available after", StringComparison.OrdinalIgnoreCase))
+                    foreach (var tag in tagsEl.EnumerateArray())
                     {
-                        tradableAfter = TryParseTradableAfter(val);
-                        if (tradableAfter.HasValue) break;
+                        var tagVal = GetStr(tag, "localized_tag_name") ?? GetStr(tag, "name") ?? "";
+                        if (tagVal.Contains("Trade Protected", StringComparison.OrdinalIgnoreCase) ||
+                            tagVal.Contains("Trade-Protected", StringComparison.OrdinalIgnoreCase))
+                        {
+                            isTradeProtectedTag = true;
+                            break;
+                        }
                     }
+                }
+
+                var searchArrays = new[] { "owner_descriptions", "descriptions" };
+                foreach (var propName in searchArrays)
+                {
+                    if (desc.TryGetProperty(propName, out var arrayEl) && arrayEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var itemEl in arrayEl.EnumerateArray())
+                        {
+                            var val = GetStr(itemEl, "value") ?? "";
+                            if (val.Contains("trade-protected", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("Trade Protected", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("transferred until", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("Tradable After", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("Available after", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("передаваемым", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("Доступно после", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("можно обменять", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("until", StringComparison.OrdinalIgnoreCase) ||
+                                val.Contains("защищен", StringComparison.OrdinalIgnoreCase))
+                            {
+                                tradableAfter = TryParseTradableAfter(val);
+                                if (tradableAfter.HasValue) break;
+                            }
+                        }
+                    }
+                    if (tradableAfter.HasValue) break;
                 }
             }
 
-            if (!tradable && marketRest > 0 && !tradableAfter.HasValue)
-                tradableAfter = DateTime.UtcNow.Date.AddDays(marketRest);
+            // Fallback for trade-locked skins without explicit date text:
+            if (!tradable && !tradableAfter.HasValue && (isTradeProtectedTag || !string.IsNullOrEmpty(exterior) || marketable))
+            {
+                tradableAfter = DateTime.UtcNow.AddDays(7);
+            }
 
             items.Add(new InventoryItem
             {
@@ -510,6 +605,7 @@ public sealed class SteamSession : IDisposable
             });
         }
 
+        items.RemoveAll(i => i.IsPermanentlyUntradable);
         return items;
     }
 
@@ -1329,28 +1425,61 @@ public sealed class SteamSession : IDisposable
 
     private static DateTime? TryParseTradableAfter(string text)
     {
-        // "Tradable After Mon May 01 00:00:00 2026 GMT"
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
         var m = Regex.Match(text,
-            @"(?:Tradable After|Available after)\s+(.+?)(?:\s*GMT)?\s*$",
+            @"(?:transferred until|until|Tradable/Marketable After|Tradable After|Available after|Can be traded after|передаваемым после|Доступно после|можно будет передать после|можно обменять после|после|до)\s+(.+?)(?:\s*GMT)?\s*$",
             RegexOptions.IgnoreCase);
+
         var raw = m.Success ? m.Groups[1].Value.Trim() : text;
         raw = Regex.Replace(raw, @"\s+GMT\s*$", "", RegexOptions.IgnoreCase).Trim();
+        raw = raw.Replace("(", "").Replace(")", "").Trim();
+
+        // Translate Russian month abbreviations to English for DateTime.TryParseExact
+        raw = Regex.Replace(raw, @"\bянв\w*\b", "Jan", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bфев\w*\b", "Feb", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bмар\w*\b", "Mar", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bапр\w*\b", "Apr", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bмай\w*\b|\bмая\b", "May", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bиюн\w*\b", "Jun", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bиюл\w*\b", "Jul", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bавг\w*\b", "Aug", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bсен\w*\b", "Sep", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bокт\w*\b", "Oct", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bноя\w*\b", "Nov", RegexOptions.IgnoreCase);
+        raw = Regex.Replace(raw, @"\bдек\w*\b", "Dec", RegexOptions.IgnoreCase);
+
         string[] formats =
         [
+            "M/d/yyyy, h:mm:ss tt",
+            "M/d/yyyy h:mm:ss tt",
+            "MM/dd/yyyy, hh:mm:ss tt",
+            "MM/dd/yyyy hh:mm:ss tt",
+            "dd.MM.yyyy, HH:mm:ss",
+            "dd.MM.yyyy HH:mm:ss",
+            "d.M.yyyy, H:mm:ss",
+            "d.M.yyyy H:mm:ss",
             "ddd MMM dd HH:mm:ss yyyy",
+            "MMM dd, yyyy HH:mm:ss",
             "MMM dd yyyy HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss",
-            "dd MMM yyyy"
+            "dd MMM yyyy HH:mm:ss",
+            "MMM dd, yyyy",
+            "MMM dd yyyy",
+            "dd MMM yyyy",
+            "yyyy-MM-dd HH:mm:ss"
         ];
+
         if (DateTime.TryParseExact(raw, formats,
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
                 out var dt))
             return dt;
+
         if (DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
                 out dt))
             return dt.ToUniversalTime();
+
         return null;
     }
 

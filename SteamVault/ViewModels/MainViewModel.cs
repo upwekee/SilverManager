@@ -279,8 +279,8 @@ public partial class MainViewModel : ViewModelBase
         {
             try
             {
-                var raw = File.ReadAllText(EditMaFilePath).TrimStart('\uFEFF');
-                var ma = System.Text.Json.JsonSerializer.Deserialize<MaFile>(raw);
+                var raw = File.ReadAllText(EditMaFilePath);
+                var ma = MaFile.Parse(raw);
                 if (ma == null || string.IsNullOrWhiteSpace(ma.SharedSecret) || string.IsNullOrWhiteSpace(ma.IdentitySecret))
                     throw new InvalidOperationException("The selected file is not a valid maFile with shared_secret and identity_secret");
                 acc.SharedSecret = ma.SharedSecret;
@@ -719,6 +719,7 @@ public partial class MainViewModel : ViewModelBase
 
         ShellPage = (int)Models.ShellPage.Home;
         StreamSafeMode = true;
+        LoadCacheForAccounts();
         RecalcDashboard();
         RebuildAccountList();
         PushTimeline("boot", "SilverManager ready", "stream-safe · permanent HWID");
@@ -1028,7 +1029,7 @@ public partial class MainViewModel : ViewModelBase
     /// items contribute to value and totals. Hold / non-tradable skins stay visible in Inventory
     /// but do not inflate the portfolio number.
     /// </summary>
-    public bool Counts(InventoryItem i) => Settings.CountNonTradable || i.Tradable;
+    public bool Counts(InventoryItem i) => !i.IsPermanentlyUntradable;
 
     private void RecalcDashboard()
     {
@@ -1183,8 +1184,9 @@ public partial class MainViewModel : ViewModelBase
             foreach (var it in Items)
             {
                 if (!selectedIds.Contains(it.AccountId)) continue;
-                // Setting off: hide every non-tradable item from Inventory (portfolio already ignores them).
-                if (!Settings.CountNonTradable && !it.Tradable) { deadWeight++; continue; }
+                // Setting off: hide only items that are permanently untradable (pins, coins).
+                // Items on a temporary trade hold (IsOnTradeHold) always stay visible in the Inventory grid.
+                if (!Settings.CountNonTradable && it.IsPermanentlyUntradable) { deadWeight++; continue; }
                 owned++;
                 if (TradableOnly && !it.Tradable) continue;
                 if (HideTradeHold && it.IsOnTradeHold) continue;
@@ -1689,21 +1691,11 @@ public partial class MainViewModel : ViewModelBase
         await RunScanPipelineAsync(count);
     }
 
-    private bool _forceInventoryRefresh;
-
     private async Task RunScanPipelineAsync(int count)
     {
         Log($"Scan started for {count} accounts", LogLevel.Info);
         // Fresh network load (not stale cache) so portfolio matches live inventories.
-        _forceInventoryRefresh = true;
-        try
-        {
-            await LoadInventoriesAsync();
-        }
-        finally
-        {
-            _forceInventoryRefresh = false;
-        }
+        await LoadInventoriesAsync();
         if (!string.IsNullOrWhiteSpace(Settings.SteamWebApiKey))
             await CheckVacAsync();
         else
@@ -2992,7 +2984,8 @@ public partial class MainViewModel : ViewModelBase
                 acc.Status = AccountStatus.Busy;
                 try
                 {
-                    var inv = await LoadInventoryForAccountAsync(acc, forceRefresh: _forceInventoryRefresh, ct);
+                    // Always force fresh live fetch during inventory scan so new items and trade holds are fetched immediately
+                    var inv = await LoadInventoryForAccountAsync(acc, forceRefresh: true, ct);
                     foreach (var it in inv)
                         it.Price = _prices.GetPrice(it.MarketHashName);
 
@@ -3134,25 +3127,70 @@ public partial class MainViewModel : ViewModelBase
             }
             inv = await session.GetCs2InventoryAsync(ct);
         }
-        catch (Exception invEx) when (
-            invEx.Message.Contains("private", StringComparison.OrdinalIgnoreCase) ||
-            invEx.Message.Contains("private", StringComparison.OrdinalIgnoreCase) ||
-            invEx.Message.Contains("Login", StringComparison.OrdinalIgnoreCase) ||
-            invEx.Message.Contains("sign in", StringComparison.OrdinalIgnoreCase) ||
-            invEx.Message.Contains("403") ||
-            invEx.Message.Contains("closed"))
+        catch (Exception invEx)
         {
-            Log($"{acc.Login}: private inv → login…", LogLevel.Info);
-            await session.LoginAsync(new Progress<string>(m => Log($"{acc.Login}: {m}")), ct);
-            acc.SteamId64 = session.SteamId64;
-            acc.Status = AccountStatus.Online;
-            inv = await session.GetCs2InventoryAsync(ct);
+            Log($"{acc.Login}: public inventory fetch failed ({invEx.Message}) → attempting session login…", LogLevel.Info);
+            try
+            {
+                await session.LoginAsync(new Progress<string>(m => Log($"{acc.Login}: {m}")), ct);
+                acc.SteamId64 = session.SteamId64;
+                acc.Status = AccountStatus.Online;
+                inv = await session.GetCs2InventoryAsync(ct);
+            }
+            catch (Exception authEx)
+            {
+                Log($"{acc.Login}: live fetch failed ({authEx.Message}) — falling back to disk cache…", LogLevel.Warning);
+                var cached = _invCache.TryLoad(acc.Id, acc.Login, TimeSpan.FromDays(365));
+                if (cached != null && cached.Count > 0)
+                {
+                    Log($"{acc.Login}: restored {cached.Count} items from disk cache", LogLevel.Info);
+                    return cached;
+                }
+                throw;
+            }
         }
 
+        inv.RemoveAll(i => i.IsPermanentlyUntradable);
         foreach (var it in inv)
             it.Price = _prices.GetPrice(it.MarketHashName);
-        _invCache.Save(acc.Id, inv);
+        _invCache.Save(acc.Id, inv, acc.Login);
         return inv;
+    }
+
+    private void LoadCacheForAccounts()
+    {
+        try
+        {
+            var addedCount = 0;
+            foreach (var acc in Accounts)
+            {
+                var cached = _invCache.TryLoad(acc.Id, acc.Login, TimeSpan.FromDays(365));
+                if (cached != null && cached.Count > 0)
+                {
+                    cached.RemoveAll(i => i.IsPermanentlyUntradable);
+                    foreach (var it in cached)
+                        it.Price = _prices.GetPrice(it.MarketHashName);
+
+                    for (var idx = Items.Count - 1; idx >= 0; idx--)
+                        if (Items[idx].AccountId == acc.Id) Items.RemoveAt(idx);
+
+                    foreach (var it in cached) Items.Add(it);
+                    acc.InventoryCount = cached.Count;
+                    acc.InventoryValue = cached.Sum(x => x.Price * Math.Max(1, x.Amount));
+                    acc.InventoryScanned = true;
+                    acc.StatusText = $"{cached.Count} items";
+                    addedCount += cached.Count;
+                }
+            }
+            if (addedCount > 0)
+            {
+                Log($"Loaded {addedCount} items from disk cache for {Accounts.Count} accounts", LogLevel.Info);
+            }
+            RecalcDashboard();
+            RebuildAccountList();
+            RefreshFilter();
+        }
+        catch { /* ignore cache boot errors */ }
     }
 
     [RelayCommand]
@@ -4124,8 +4162,8 @@ public partial class MainViewModel : ViewModelBase
         error = "";
         try
         {
-            var raw = File.ReadAllText(path).TrimStart('\uFEFF');
-            var ma = System.Text.Json.JsonSerializer.Deserialize<MaFile>(raw);
+            var raw = File.ReadAllText(path);
+            var ma = MaFile.Parse(raw);
             if (ma == null || string.IsNullOrWhiteSpace(ma.SharedSecret) || string.IsNullOrWhiteSpace(ma.IdentitySecret))
             {
                 error = "Invalid maFile (shared_secret / identity_secret missing)";

@@ -63,21 +63,73 @@ public partial class InventoryItem : ObservableObject
 
     public string PriceText => Price > 0 ? $"${Price:0.00}" : "—";
     public string Key => $"{AccountId}:{AssetId}";
-    public bool IsOnTradeHold =>
-        !Tradable || (TradableAfter.HasValue && TradableAfter.Value > DateTime.UtcNow);
+    /// <summary>
+    /// True when the item can never be traded or sold (e.g. Service Medals, Coins, Pins, Trophies).
+    /// Real skins, knives, gloves, cases, and stickers with trade holds are NEVER permanently untradable.
+    /// </summary>
+    public bool IsPermanentlyUntradable
+    {
+        get
+        {
+            if (Tradable || Marketable) return false;
+            if (TradableAfter.HasValue && TradableAfter.Value > DateTime.UtcNow) return false;
+            if (!string.IsNullOrWhiteSpace(Exterior)) return false;
+            return true;
+        }
+    }
 
     /// <summary>
-    /// True when the item can never move: Steam reports it as not tradable and there is no
-    /// unlock date or restriction window. A fresh weekly drop is also <c>Tradable == false</c>,
-    /// but it carries a countdown, so it is not dead weight — folding the two together would
-    /// hide the farm's own output, which is the one thing this app exists to show.
+    /// Item is on a temporary trade hold if it has a future TradableAfter date or is a marketable skin with a trade restriction.
     /// </summary>
-    public bool IsPermanentlyUntradable =>
-        !Tradable && !TradableAfter.HasValue && MarketTradableRestriction <= 0;
+    public bool IsOnTradeHold =>
+        !IsPermanentlyUntradable && (
+            (TradableAfter.HasValue && TradableAfter.Value > DateTime.UtcNow) ||
+            (!Tradable && (Marketable || !string.IsNullOrWhiteSpace(Exterior)))
+        );
+
     public string HoldText =>
         IsOnTradeHold
             ? (TradableAfter.HasValue ? $"hold → {TradableAfter:dd.MM}" : "hold")
             : "ok";
+
+    /// <summary>
+    /// Formatted hold countdown badge (e.g. "🔒 3d 14h", "🔒 5h 20m", "🔒 < 1m", "🔒 Hold").
+    /// </summary>
+    public string HoldBadgeText
+    {
+        get
+        {
+            if (!IsOnTradeHold) return "";
+            if (!TradableAfter.HasValue)
+            {
+                return "🔒 Hold";
+            }
+
+            var rem = TradableAfter.Value - DateTime.UtcNow;
+            if (rem.TotalSeconds <= 0) return "🔓 Ready";
+
+            if (rem.TotalDays >= 1)
+                return $"🔒 {(int)rem.TotalDays}d {rem.Hours}h";
+            if (rem.TotalHours >= 1)
+                return $"🔒 {(int)rem.TotalHours}h {rem.Minutes}m";
+            if (rem.TotalMinutes >= 1)
+                return $"🔒 {(int)rem.TotalMinutes}m";
+
+            return "🔒 < 1m";
+        }
+    }
+
+    /// <summary>Detailed tooltip for trade lock.</summary>
+    public string HoldTooltipText
+    {
+        get
+        {
+            if (!IsOnTradeHold) return "Tradable";
+            if (TradableAfter.HasValue)
+                return $"Trade locked until {TradableAfter.Value.ToLocalTime():dd.MM.yyyy HH:mm}";
+            return "Trade locked (7-day restriction)";
+        }
+    }
 
     partial void OnPriceChanged(decimal value) => OnPropertyChanged(nameof(PriceText));
 }

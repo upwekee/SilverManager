@@ -724,6 +724,11 @@
                                     IsVisible="{Binding QualityText, Converter={x:Static conv:AppConverters.StringNotEmpty}}">
                               <TextBlock Text="{Binding QualityText}" FontSize="10" FontWeight="SemiBold" Foreground="#A2A2A9"/>
                             </Border>
+                            <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,8"
+                                    Background="#E52A1212" BorderBrush="#E0575F" BorderThickness="1" CornerRadius="6" Padding="6,2"
+                                    IsVisible="{Binding IsOnTradeHold}" ToolTip.Tip="{Binding HoldTooltipText}">
+                              <TextBlock Text="{Binding HoldBadgeText}" FontSize="10" FontWeight="Bold" Foreground="#FF6B6B"/>
+                            </Border>
                             <Border Height="3" VerticalAlignment="Bottom"
                                     Background="{Binding RarityAccentSource, Converter={x:Static conv:AppConverters.RarityAccent}}"/>
                           </Panel>
@@ -733,7 +738,10 @@
                             <TextBlock Text="{Binding Exterior}" FontSize="11" Foreground="#6C6C75" TextTrimming="CharacterEllipsis"/>
                             <Grid ColumnDefinitions="*,Auto">
                               <TextBlock Text="{Binding AccountLogin}" FontSize="11" Foreground="#6C6C75" TextTrimming="CharacterEllipsis"/>
-                              <TextBlock Grid.Column="1" Text="{Binding HoldText}" FontSize="11" Foreground="#6C6C75"/>
+                              <TextBlock Grid.Column="1" Text="{Binding HoldBadgeText}" FontSize="11" Foreground="#E0575F"
+                                         IsVisible="{Binding IsOnTradeHold}"/>
+                              <TextBlock Grid.Column="1" Text="{Binding HoldText}" FontSize="11" Foreground="#6C6C75"
+                                         IsVisible="{Binding !IsOnTradeHold}"/>
                             </Grid>
                           </StackPanel>
                         </StackPanel>

@@ -17,7 +17,7 @@ public sealed class InventoryCacheService
         Directory.CreateDirectory(_dir);
     }
 
-    public void Save(string accountId, IReadOnlyList<InventoryItem> items)
+    public void Save(string accountId, IReadOnlyList<InventoryItem> items, string? login = null)
     {
         try
         {
@@ -26,7 +26,12 @@ public sealed class InventoryCacheService
                 SavedAt = DateTime.UtcNow,
                 Items = items.Select(ToDto).ToList()
             };
-            File.WriteAllText(PathFor(accountId), JsonSerializer.Serialize(dto, JsonOpts));
+            var json = JsonSerializer.Serialize(dto, JsonOpts);
+            File.WriteAllText(PathFor(accountId), json);
+            if (!string.IsNullOrWhiteSpace(login))
+            {
+                File.WriteAllText(PathFor(login.Trim().ToLowerInvariant()), json);
+            }
         }
         catch { /* */ }
     }
@@ -36,7 +41,12 @@ public sealed class InventoryCacheService
         try
         {
             var path = PathFor(accountId);
+            if (!File.Exists(path) && !string.IsNullOrWhiteSpace(login))
+            {
+                path = PathFor(login.Trim().ToLowerInvariant());
+            }
             if (!File.Exists(path)) return null;
+
             var dto = JsonSerializer.Deserialize<CacheFile>(File.ReadAllText(path));
             if (dto == null) return null;
             if (DateTime.UtcNow - dto.SavedAt > maxAge) return null;

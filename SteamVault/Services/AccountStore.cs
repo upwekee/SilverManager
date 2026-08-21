@@ -11,7 +11,12 @@ public sealed class AccountStore
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         WriteIndented = true,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters =
+        {
+            new FlexibleStringConverter(),
+            new FlexibleUlongConverter()
+        }
     };
 
     public ObservableCollection<SteamAccount> Accounts { get; } = new();
@@ -126,9 +131,13 @@ public sealed class AccountStore
 
         foreach (var (login, password) in pairs)
         {
-            maMap.TryGetValue(login.ToLowerInvariant(), out var ma);
             var existing = Accounts.FirstOrDefault(a =>
                 a.Login.Equals(login, StringComparison.OrdinalIgnoreCase));
+
+            if (!maMap.TryGetValue(login.ToLowerInvariant(), out var ma) && existing != null && !string.IsNullOrEmpty(existing.SteamId64))
+            {
+                maMap.TryGetValue(existing.SteamId64.ToLowerInvariant(), out ma);
+            }
 
             if (existing != null)
             {
@@ -202,19 +211,32 @@ public sealed class AccountStore
             if (!file.EndsWith(".mafile", StringComparison.OrdinalIgnoreCase)) continue;
             try
             {
-                var text = File.ReadAllText(file).TrimStart('\uFEFF');
-                var ma = JsonSerializer.Deserialize<MaFile>(text, JsonOpts);
+                var text = File.ReadAllText(file);
+                var ma = MaFile.Parse(text);
                 if (ma == null || string.IsNullOrEmpty(ma.SharedSecret)) continue;
-                var name = ma.AccountName
-                           ?? ma.Session?.SteamLogin
-                           ?? Path.GetFileNameWithoutExtension(file);
-                if (string.IsNullOrWhiteSpace(name)) continue;
                 ma.Path = file;
-                map[name.Trim().ToLowerInvariant()] = ma;
+
+                var names = new List<string?>
+                {
+                    ma.AccountName,
+                    ma.Session?.SteamLogin,
+                    Path.GetFileNameWithoutExtension(file),
+                    ma.SteamId,
+                    ma.Session?.SteamId > 0 ? ma.Session.SteamId.ToString() : null
+                };
+
+                foreach (var name in names)
+                {
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        var key = name.Trim().ToLowerInvariant();
+                        map[key] = ma;
+                    }
+                }
             }
             catch
             {
-                // skip bad mafile
+                // skip corrupt mafile
             }
         }
         return map;
