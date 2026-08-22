@@ -64,6 +64,7 @@ public partial class AppSettings : ObservableObject
 
     // Global default proxy (fallback if account.Proxy empty)
     [ObservableProperty] private string _defaultProxy = "";
+    [ObservableProperty] private string _savedProxyBulkText = "";
 
     // Auto-sell junk
     [ObservableProperty] private decimal _junkMaxPriceUsd = 0.10m;

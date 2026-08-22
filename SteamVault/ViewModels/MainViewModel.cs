@@ -28,6 +28,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly ConfirmationAutoService _autoConf;
     private readonly SoundService _sfx = new();
     private readonly InventoryCacheService _invCache = new();
+    private readonly UpdateCheckerService _updater = new();
     private readonly JobController _job = new();
     private readonly DispatcherTimer _guardTimer;
     private readonly DispatcherTimer _statsTimer;
@@ -403,6 +404,19 @@ public partial class MainViewModel : ViewModelBase
     public ObservableCollection<ProxyCheckResult> ProxyCheckResults { get; } = new();
     public ObservableCollection<ProxyUsageRow> ProxyUsageRows { get; } = new();
 
+    // App Update properties
+    [ObservableProperty] private bool _hasUpdate;
+    [ObservableProperty] private string _appVersion = UpdateCheckerService.CurrentVersion;
+    [ObservableProperty] private string _latestVersion = UpdateCheckerService.CurrentVersion;
+    [ObservableProperty] private string _updateReleaseUrl = $"https://github.com/{UpdateCheckerService.RepoOwner}/{UpdateCheckerService.RepoName}/releases";
+    [ObservableProperty] private string? _updateDownloadUrl;
+    [ObservableProperty] private string _updateStatusText = "";
+    [ObservableProperty] private bool _isCheckingUpdate;
+    [ObservableProperty] private bool _isDownloadingUpdate;
+    [ObservableProperty] private double _updateProgressPercent;
+    [ObservableProperty] private string _updateProgressText = "";
+    [ObservableProperty] private string _updateReleaseNotes = "";
+
     // Inventory filters — all off by default so a scan always shows what it found.
     [ObservableProperty] private bool _filterCasesOnly;
     [ObservableProperty] private bool _filterReadyOnly;
@@ -703,6 +717,7 @@ public partial class MainViewModel : ViewModelBase
             Settings.AlwaysSpoofHwid = true;
 
         SteamSession.GlobalDefaultProxy = Settings.DefaultProxy;
+        ProxyBulkText = Settings.SavedProxyBulkText ?? "";
         SyncSfxFromSettings();
         RefreshApiKeyStatus();
 
@@ -725,6 +740,38 @@ public partial class MainViewModel : ViewModelBase
         PushTimeline("boot", "SilverManager ready", "stream-safe · permanent HWID");
         // soft boot chime (Botanica Power Up 1s @ low volume)
         Dispatcher.UIThread.Post(() => _sfx.Play(Sfx.Startup), DispatcherPriority.Background);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var count = await _prices.RefreshAsync();
+                if (count > 0)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        foreach (var it in Items)
+                        {
+                            var p = _prices.GetPrice(it.MarketHashName);
+                            if (p > 0) it.Price = p;
+                        }
+                        foreach (var a in Accounts)
+                        {
+                            var accItems = Items.Where(i => i.AccountId == a.Id).ToList();
+                            if (accItems.Count > 0)
+                                a.InventoryValue = accItems.Sum(x => x.Price * Math.Max(1, x.Amount));
+                        }
+                        RecalcDashboard();
+                        RebuildAccountList();
+                        RefreshFilter();
+                    });
+                }
+            }
+            catch { /* ignore background price refresh error */ }
+        });
+
+        // Background update check on launch
+        _ = Task.Run(() => CheckForUpdatesAsync());
 
         // NO live 2FA on screen (stream safety). Codes only on demand via Copy guard in Advanced.
         _guardTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
@@ -2977,9 +3024,11 @@ public partial class MainViewModel : ViewModelBase
             foreach (var acc in list)
             {
                 await _job.WaitIfPausedAsync(ct);
-                ct.ThrowIfCancellationRequested();
-                _job.Current = acc.Login;
-                SetBusy($"Scan {_job.Done + 1}/{list.Count}: {acc.Login}");
+                var sess = _sessions.GetOrCreate(acc);
+                var proxyInfo = sess.GetEffectiveProxyDescription();
+                _job.Current = $"{acc.Login} · {proxyInfo}";
+                SetBusy($"Scan {_job.Done + 1}/{list.Count}: {acc.Login} [{proxyInfo}]");
+                Log($"{acc.Login}: запуск сканирования via {proxyInfo}…", LogLevel.Info);
                 PushQueueUi();
                 acc.Status = AccountStatus.Busy;
                 try
@@ -3169,7 +3218,11 @@ public partial class MainViewModel : ViewModelBase
                 {
                     cached.RemoveAll(i => i.IsPermanentlyUntradable);
                     foreach (var it in cached)
-                        it.Price = _prices.GetPrice(it.MarketHashName);
+                    {
+                        var fetchedPrice = _prices.GetPrice(it.MarketHashName);
+                        if (fetchedPrice > 0 || it.Price <= 0)
+                            it.Price = fetchedPrice;
+                    }
 
                     for (var idx = Items.Count - 1; idx >= 0; idx--)
                         if (Items[idx].AccountId == acc.Id) Items.RemoveAt(idx);
@@ -5102,6 +5155,8 @@ public partial class MainViewModel : ViewModelBase
         var n = ProxyHelper.Distribute(targets, proxies);
         _store.Save();
         RecalcDashboard();
+        RefreshProxyUsage();
+        foreach (var a in Accounts) a.NotifyProxyPropertiesChanged();
         Log($"List: {proxies.Count} proxies → {n} acc (1:1 or round-robin). Saved.", LogLevel.Success);
         _sfx.Play(Sfx.Done);
     }
@@ -5123,6 +5178,8 @@ public partial class MainViewModel : ViewModelBase
         var n = ProxyHelper.Distribute(targets, proxies);
         _store.Save();
         RecalcDashboard();
+        RefreshProxyUsage();
+        foreach (var a in Accounts) a.NotifyProxyPropertiesChanged();
         Log($"List: {proxies.Count} proxies → all {n} accounts (1:1 or round-robin). Saved.", LogLevel.Success);
         _sfx.Play(Sfx.Done);
     }
@@ -5174,6 +5231,288 @@ public partial class MainViewModel : ViewModelBase
             : $"Default proxy: {ProxyHelper.Mask(Settings.DefaultProxy)}", LogLevel.Success);
     }
 
+    [ObservableProperty] private bool _showProxyModal;
+    [ObservableProperty] private string _proxyModalInput = "";
+    [ObservableProperty] private int _proxyModalMode; // 0 = one for all, 1 = list (1:1 / round robin)
+    [ObservableProperty] private string _proxyModalSearch = "";
+
+    // Proxy Shortage Modal
+    [ObservableProperty] private bool _showProxyShortageModal;
+    [ObservableProperty] private int _shortageProxyCount;
+    [ObservableProperty] private int _shortageAccountCount;
+
+    partial void OnProxyBulkTextChanged(string value)
+    {
+        if (Settings != null)
+        {
+            Settings.SavedProxyBulkText = value ?? "";
+            Settings.Save();
+        }
+    }
+
+    public IEnumerable<SteamAccount> FilteredProxyModalAccounts =>
+        string.IsNullOrWhiteSpace(ProxyModalSearch)
+            ? Accounts
+            : Accounts.Where(a => a.Login.Contains(ProxyModalSearch, StringComparison.OrdinalIgnoreCase)
+                               || (a.PersonaName?.Contains(ProxyModalSearch, StringComparison.OrdinalIgnoreCase) == true));
+
+    partial void OnProxyModalSearchChanged(string value) => OnPropertyChanged(nameof(FilteredProxyModalAccounts));
+
+    [RelayCommand]
+    private void OpenProxyModal()
+    {
+        ProxyModalSearch = "";
+        if (!string.IsNullOrWhiteSpace(SingleProxyInput))
+            ProxyModalInput = SingleProxyInput;
+        else if (!string.IsNullOrWhiteSpace(ProxyBulkText))
+            ProxyModalInput = ProxyBulkText;
+        ShowProxyModal = true;
+    }
+
+    [RelayCommand]
+    private void CloseProxyModal()
+    {
+        ShowProxyModal = false;
+    }
+
+    [RelayCommand]
+    private void CloseProxyShortageModal()
+    {
+        ShowProxyShortageModal = false;
+    }
+
+    [RelayCommand]
+    private void SelectAllProxyModalAccounts()
+    {
+        foreach (var a in FilteredProxyModalAccounts)
+            a.IsSelected = true;
+    }
+
+    [RelayCommand]
+    private void DeselectAllProxyModalAccounts()
+    {
+        foreach (var a in Accounts)
+            a.IsSelected = false;
+    }
+
+    [RelayCommand]
+    private void DistributeProxiesOneToOneAll()
+    {
+        var proxies = ProxyHelper.ParseLines(ProxyBulkText);
+        if (proxies.Count == 0)
+        {
+            Log("Список прокси пуст или не валиден. 1 строка = 1 прокси", LogLevel.Warning);
+            return;
+        }
+
+        var accounts = Accounts.ToList();
+        if (accounts.Count == 0)
+        {
+            Log("Нет доступных аккаунтов для назначения", LogLevel.Warning);
+            return;
+        }
+
+        if (proxies.Count < accounts.Count)
+        {
+            ShortageProxyCount = proxies.Count;
+            ShortageAccountCount = accounts.Count;
+            ShowProxyShortageModal = true;
+            return;
+        }
+
+        for (int i = 0; i < accounts.Count; i++)
+        {
+            accounts[i].Proxy = proxies[i];
+        }
+
+        _store.Save();
+        RecalcDashboard();
+        RefreshProxyUsage();
+        foreach (var a in Accounts) a.NotifyProxyPropertiesChanged();
+        Log($"✅ Назначено 1 в 1 по 1 физическому прокси на каждый из {accounts.Count} аккаунтов!", LogLevel.Success);
+        _sfx.Play(Sfx.Success);
+    }
+
+    [RelayCommand]
+    private void ResolveProxyShortageOnlyFirst()
+    {
+        var proxies = ProxyHelper.ParseLines(ProxyBulkText);
+        var accounts = Accounts.ToList();
+        for (int i = 0; i < accounts.Count; i++)
+        {
+            if (i < proxies.Count)
+                accounts[i].Proxy = proxies[i];
+            else
+                accounts[i].Proxy = null;
+        }
+
+        _store.Save();
+        RecalcDashboard();
+        RefreshProxyUsage();
+        foreach (var a in Accounts) a.NotifyProxyPropertiesChanged();
+        Log($"✅ Назначено {proxies.Count} прокси 1 в 1 на первые {proxies.Count} аккаунтов. На остальные {accounts.Count - proxies.Count} аккаунтов установлен Дефолтный прокси.", LogLevel.Success);
+        _sfx.Play(Sfx.Success);
+        ShowProxyShortageModal = false;
+    }
+
+    [RelayCommand]
+    private void ResolveProxyShortageRepeatRoundRobin()
+    {
+        var proxies = ProxyHelper.ParseLines(ProxyBulkText);
+        var accounts = Accounts.ToList();
+        ProxyHelper.Distribute(accounts, proxies);
+
+        _store.Save();
+        RecalcDashboard();
+        RefreshProxyUsage();
+        foreach (var a in Accounts) a.NotifyProxyPropertiesChanged();
+        Log($"✅ Прокси распределены по кругу (пулом) на все {accounts.Count} аккаунтов.", LogLevel.Success);
+        _sfx.Play(Sfx.Success);
+        ShowProxyShortageModal = false;
+    }
+
+    [RelayCommand]
+    private void ApplyProxyModal()
+    {
+        var proxies = ProxyHelper.ParseLines(ProxyModalInput);
+        if (proxies.Count == 0)
+        {
+            Log("Введите хотя бы один валидный прокси!", LogLevel.Warning);
+            return;
+        }
+
+        var selected = Accounts.Where(a => a.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            Log("Отметьте хотя бы один аккаунт в списке!", LogLevel.Warning);
+            return;
+        }
+
+        if (ProxyModalMode == 0 || proxies.Count == 1)
+        {
+            var single = proxies[0];
+            foreach (var acc in selected)
+                acc.Proxy = single;
+        }
+        else
+        {
+            ProxyHelper.Distribute(selected, proxies);
+        }
+
+        _store.Save();
+        RecalcDashboard();
+        RefreshProxyUsage();
+        foreach (var a in Accounts) a.NotifyProxyPropertiesChanged();
+
+        var msg = $"✅ Прокси успешно назначены на {selected.Count} аккаунтов и сохранены!";
+        Log(msg, LogLevel.Success);
+        _sfx.Play(Sfx.Success);
+        ShowProxyModal = false;
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync()
+    {
+        IsCheckingUpdate = true;
+        UpdateStatusText = T("Checking GitHub for updates…", "Проверка обновлений на GitHub…");
+        try
+        {
+            var info = await _updater.CheckForUpdatesAsync();
+            HasUpdate = info.HasUpdate;
+            LatestVersion = info.LatestVersion;
+            UpdateReleaseUrl = info.ReleaseUrl;
+            UpdateDownloadUrl = info.DownloadUrl;
+            UpdateReleaseNotes = info.ReleaseNotes;
+
+            if (info.HasUpdate)
+            {
+                UpdateStatusText = T($"New version v{info.LatestVersion} available on GitHub!", $"Доступна новая версия v{info.LatestVersion} на GitHub!");
+                Log($"✨ Доступно обновление SilverManager v{info.LatestVersion} на GitHub!", LogLevel.Success);
+                _sfx.Play(Sfx.Success);
+            }
+            else
+            {
+                UpdateStatusText = T($"App is up to date (v{AppVersion}).", $"У вас установлена актуальная версия (v{AppVersion}).");
+                Log($"У вас установлена последняя версия v{AppVersion}", LogLevel.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText = T("Update check failed", "Ошибка проверки обновлений");
+            Log($"Ошибка проверки обновлений: {ex.Message}", LogLevel.Warning);
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task AutoUpdateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UpdateDownloadUrl))
+        {
+            OpenUpdateLink();
+            return;
+        }
+
+        IsDownloadingUpdate = true;
+        UpdateProgressPercent = 0;
+        UpdateProgressText = T("Downloading update from GitHub… 0%", "Скачивание обновления с GitHub… 0%");
+        Log("⚡ Запущено автоматическое скачивание обновления с GitHub...", LogLevel.Info);
+
+        try
+        {
+            var progress = new Progress<double>(p =>
+            {
+                UpdateProgressPercent = p;
+                UpdateProgressText = T($"Downloading update from GitHub… {p:0}%", $"Скачивание обновления с GitHub… {p:0}%");
+            });
+
+            await _updater.DownloadAndInstallUpdateAsync(UpdateDownloadUrl, progress);
+        }
+        catch (Exception ex)
+        {
+            IsDownloadingUpdate = false;
+            UpdateProgressText = T($"Download failed: {ex.Message}", $"Ошибка скачивания: {ex.Message}");
+            Log($"Ошибка авто-обновления: {ex.Message}", LogLevel.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenUpdateLink()
+    {
+        UpdateCheckerService.OpenReleaseUrl(UpdateReleaseUrl);
+    }
+
+    [RelayCommand]
+    private void SaveAllProxies()
+    {
+        // If user typed/pasted a list in box 1, automatically distribute to all accounts if not already assigned
+        var bulkList = ProxyHelper.ParseLines(ProxyBulkText);
+        if (bulkList.Count > 0)
+        {
+            ProxyHelper.Distribute(Accounts, bulkList);
+        }
+
+        Settings.DefaultProxy = ProxyHelper.Normalize(Settings.DefaultProxy) ?? "";
+        Settings.Save();
+        SteamSession.GlobalDefaultProxy = Settings.DefaultProxy;
+        _store.Save();
+        RecalcDashboard();
+        RefreshProxyUsage();
+
+        foreach (var a in Accounts)
+        {
+            a.NotifyProxyPropertiesChanged();
+        }
+
+        var countWithProxy = Accounts.Count(a => a.HasProxy);
+        var msg = $"✅ Все настройки прокси применены и сохранены для {Accounts.Count} аккаунтов! (Личных: {countWithProxy}, Дефолтных: {(string.IsNullOrEmpty(Settings.DefaultProxy) ? "нет" : ProxyHelper.Mask(Settings.DefaultProxy))})";
+        Log(msg, LogLevel.Success);
+        _sfx.Play(Sfx.Success);
+    }
+
     [RelayCommand]
     private async Task CheckSingleProxyAsync()
     {
@@ -5194,18 +5533,26 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task CheckSelectedAccountProxiesAsync()
+    private async Task CheckSelectedAccountProxiesAsync(object? parameter = null)
     {
-        var targets = Accounts.Where(a => a.IsSelected && a.HasProxy).ToList();
-        if (targets.Count == 0)
+        var targets = new List<SteamAccount>();
+
+        if (parameter is SteamAccount singleAcc)
         {
-            // also check focused
-            if (FocusedAccount is { HasProxy: true })
-                targets.Add(FocusedAccount);
+            targets.Add(singleAcc);
         }
+        else
+        {
+            targets = Accounts.Where(a => a.IsSelected && (a.HasProxy || !string.IsNullOrWhiteSpace(Settings.DefaultProxy))).ToList();
+            if (targets.Count == 0 && FocusedAccount != null)
+                targets.Add(FocusedAccount);
+            if (targets.Count == 0)
+                targets = Accounts.Where(a => a.HasProxy || !string.IsNullOrWhiteSpace(Settings.DefaultProxy)).ToList();
+        }
+
         if (targets.Count == 0)
         {
-            Log("No selected/focused account with a proxy to check", LogLevel.Warning);
+            Log("Нет аккаунтов с настроенным прокси для проверки", LogLevel.Warning);
             return;
         }
 
@@ -5215,25 +5562,32 @@ public partial class MainViewModel : ViewModelBase
         var ok = 0; var fail = 0; var i = 0;
         try
         {
-            // unique proxies but map back to accounts
-            var byProxy = targets.GroupBy(a => a.Proxy!, StringComparer.OrdinalIgnoreCase).ToList();
-            foreach (var g in byProxy)
+            foreach (var acc in targets)
             {
                 i++;
-                ProxyCheckSummary = $"check {i}/{byProxy.Count}…";
-                var r = await ProxyHelper.CheckAsync(g.Key);
-                ProxyCheckResults.Insert(0, r);
-                foreach (var acc in g)
+                var proxyStr = !string.IsNullOrWhiteSpace(acc.Proxy) ? acc.Proxy : Settings.DefaultProxy;
+                if (string.IsNullOrWhiteSpace(proxyStr))
                 {
-                    acc.ProxyCheckOk = r.Ok;
-                    acc.ProxyCheckMs = r.Ms;
-                    acc.ProxyCheckNote = r.StatusText;
+                    acc.ProxyCheckOk = false;
+                    acc.ProxyCheckNote = "No proxy";
+                    continue;
                 }
+
+                ProxyCheckSummary = $"Проверка {i}/{targets.Count}: {acc.Login}…";
+                Log($"[{acc.Login}] Проверка прокси {ProxyHelper.Mask(proxyStr)}…", LogLevel.Info);
+
+                var r = await ProxyHelper.CheckAsync(proxyStr);
+                ProxyCheckResults.Insert(0, r);
+
+                acc.ProxyCheckOk = r.Ok;
+                acc.ProxyCheckMs = r.Ms;
+                acc.ProxyCheckNote = r.StatusText;
+                acc.NotifyProxyPropertiesChanged();
+
                 if (r.Ok) ok++; else fail++;
-                Log($"Check {r.ProxyShort} ({g.Count()} acc): {r.StatusText}",
-                    r.Ok ? LogLevel.Success : LogLevel.Error);
+                Log($"[{acc.Login}] {r.ProxyShort}: {r.StatusText}", r.Ok ? LogLevel.Success : LogLevel.Error);
             }
-            ProxyCheckSummary = $"OK {ok} · FAIL {fail} · {byProxy.Count} unique";
+            ProxyCheckSummary = $"OK {ok} · FAIL {fail} · Всего {targets.Count}";
             if (ok > 0 && fail == 0) _sfx.Play(Sfx.Done);
             else if (fail > 0) _sfx.Play(Sfx.Error);
         }

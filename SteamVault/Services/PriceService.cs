@@ -7,14 +7,54 @@ namespace SteamVault.Services;
 /// </summary>
 public sealed class PriceService
 {
+    private static readonly string CacheFilePath = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "SteamVault", "prices.json");
+
     private readonly Dictionary<string, decimal> _prices = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastRefresh = DateTime.MinValue;
     private string? _source;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
+    public PriceService()
+    {
+        LoadDiskCache();
+    }
+
     public int Count => _prices.Count;
     public string? Source => _source;
     public DateTime LastRefresh => _lastRefresh;
+
+    private void LoadDiskCache()
+    {
+        try
+        {
+            if (File.Exists(CacheFilePath))
+            {
+                var json = File.ReadAllText(CacheFilePath);
+                var dict = JsonSerializer.Deserialize<Dictionary<string, decimal>>(json);
+                if (dict != null && dict.Count > 0)
+                {
+                    _prices.Clear();
+                    foreach (var kv in dict) _prices[kv.Key] = kv.Value;
+                    _lastRefresh = File.GetLastWriteTimeUtc(CacheFilePath);
+                    _source = "disk cache";
+                }
+            }
+        }
+        catch { /* ignore */ }
+    }
+
+    private void SaveDiskCache()
+    {
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(CacheFilePath)!);
+            var json = JsonSerializer.Serialize(_prices);
+            File.WriteAllText(CacheFilePath, json);
+        }
+        catch { /* ignore */ }
+    }
 
     public decimal GetPrice(string? marketHashName)
     {
@@ -40,6 +80,7 @@ public sealed class PriceService
             }
 
             _lastRefresh = DateTime.UtcNow;
+            SaveDiskCache();
             return _prices.Count;
         }
         finally

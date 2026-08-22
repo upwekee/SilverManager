@@ -119,10 +119,42 @@ public partial class SteamAccount : ObservableObject
         _ => HasProxy ? "PX" : ""
     };
 
+    public string ActiveProxyText
+    {
+        get
+        {
+            if (HasProxy) return ProxyShort;
+            if (!string.IsNullOrWhiteSpace(Services.SteamSession.GlobalDefaultProxy))
+                return Services.ProxyHelper.Mask(Services.SteamSession.GlobalDefaultProxy) + " (Def)";
+            return "Direct IP";
+        }
+    }
+
+    public string ActiveProxyType
+    {
+        get
+        {
+            if (HasProxy) return "Личный";
+            if (!string.IsNullOrWhiteSpace(Services.SteamSession.GlobalDefaultProxy)) return "Общий (Default)";
+            return "Прямой IP";
+        }
+    }
+
+    public void NotifyProxyPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(HasProxy));
+        OnPropertyChanged(nameof(ProxyShort));
+        OnPropertyChanged(nameof(ActiveProxyText));
+        OnPropertyChanged(nameof(ActiveProxyType));
+        OnPropertyChanged(nameof(Readiness));
+    }
+
     partial void OnProxyChanged(string? value)
     {
         OnPropertyChanged(nameof(HasProxy));
         OnPropertyChanged(nameof(ProxyShort));
+        OnPropertyChanged(nameof(ActiveProxyText));
+        OnPropertyChanged(nameof(ActiveProxyType));
         ProxyCheckOk = null;
         ProxyCheckMs = 0;
         ProxyCheckNote = null;

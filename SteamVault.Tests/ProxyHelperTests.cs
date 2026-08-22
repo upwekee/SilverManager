@@ -9,6 +9,10 @@ public class ProxyHelperTests
     [InlineData("1.2.3.4:8080", true)]
     [InlineData("user:pass@1.2.3.4:8080", true)]
     [InlineData("http://1.2.3.4:8080", true)]
+    [InlineData("1.2.3.4:8080:usr:pwd", true)]
+    [InlineData("usr:pwd:1.2.3.4:8080", true)]
+    [InlineData("socks5://1.2.3.4:8080:usr:pwd", true)]
+    [InlineData("socks5://usr:pwd@1.2.3.4:8080", true)]
     [InlineData("", false)]
     [InlineData(":::", false)]
     public void IsValid_formats(string proxy, bool expected)

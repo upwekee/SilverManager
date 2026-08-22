@@ -57,7 +57,8 @@ public sealed class SteamSession : IDisposable
                 {
                     Proxy = proxy,
                     UseProxy = true,
-                    AutomaticDecompression = DecompressionMethods.All
+                    AutomaticDecompression = DecompressionMethods.All,
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
                 };
                 return new HttpClient(handler);
             });
@@ -258,7 +259,8 @@ public sealed class SteamSession : IDisposable
             UseCookies = useCookies,
             AllowAutoRedirect = true,
             Proxy = proxy,
-            UseProxy = proxy != null
+            UseProxy = proxy != null,
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
         };
         var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
         http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
@@ -268,6 +270,15 @@ public sealed class SteamSession : IDisposable
         http.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9");
         http.DefaultRequestHeaders.TryAddWithoutValidation("Referer", "https://steamcommunity.com/");
         return http;
+    }
+
+    public string GetEffectiveProxyDescription()
+    {
+        if (!string.IsNullOrWhiteSpace(_account.Proxy))
+            return $"Proxy: {ProxyHelper.Mask(_account.Proxy)} (Личный)";
+        if (!string.IsNullOrWhiteSpace(GlobalDefaultProxy))
+            return $"Default Proxy: {ProxyHelper.Mask(GlobalDefaultProxy)} (Дефолтный)";
+        return "Direct IP (без прокси)";
     }
 
     /// <summary>
@@ -1248,7 +1259,8 @@ public sealed class SteamSession : IDisposable
                 CookieContainer = Cookies,
                 UseCookies = true,
                 AllowAutoRedirect = false,
-                AutomaticDecompression = DecompressionMethods.All
+                AutomaticDecompression = DecompressionMethods.All,
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
             };
             var proxyStr = !string.IsNullOrWhiteSpace(_account.Proxy) ? _account.Proxy : GlobalDefaultProxy;
             var proxy = ProxyHelper.TryCreate(proxyStr);
@@ -1318,7 +1330,8 @@ public sealed class SteamSession : IDisposable
             UseCookies = true,
             AllowAutoRedirect = allowAutoRedirect,
             Proxy = proxy,
-            UseProxy = proxy != null
+            UseProxy = proxy != null,
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
         };
     }
 

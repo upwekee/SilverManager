@@ -33,6 +33,9 @@
                    FontSize="11" Foreground="#6C6C75" TextTrimming="CharacterEllipsis" MaxWidth="460"/>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="accent" Command="{Binding OpenUpdateLinkCommand}" IsVisible="{Binding HasUpdate}" Padding="10,4" ToolTip.Tip="Доступно новое обновление на GitHub. Нажмите, чтобы открыть!">
+            <TextBlock Text="{Binding LatestVersion, StringFormat={}v{0} доступно}" FontSize="11" FontWeight="Bold"/>
+          </Button>
           <Border Classes="chip accent" IsVisible="{Binding SelectedAccountCount, Converter={x:Static conv:AppConverters.NonZeroToTrue}}">
             <TextBlock Text="{Binding ChipAccCount}" Foreground="#D8D8DE" FontSize="11" FontWeight="SemiBold"/>
           </Border>
@@ -581,6 +584,9 @@
                     <StackPanel Grid.Column="2" Margin="11,0,10,0" Spacing="2" VerticalAlignment="Center">
                       <StackPanel Orientation="Horizontal" Spacing="7">
                         <TextBlock Text="{Binding Login}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                        <Border Background="#1A2733" BorderBrush="#0A84FF" BorderThickness="1" CornerRadius="5" Padding="5,1" VerticalAlignment="Center" ToolTip.Tip="{Binding ActiveProxyType}">
+                          <TextBlock Text="{Binding ActiveProxyText}" FontSize="9" FontWeight="SemiBold" Foreground="#64D2FF"/>
+                        </Border>
                         <Border Background="#1E1E22" BorderBrush="#4A4A55" BorderThickness="1" CornerRadius="6"
                                 Padding="6,1" VerticalAlignment="Center" IsVisible="{Binding IsWarehouse}">
                           <TextBlock Text="{Binding DataContext.Ui.LabelWarehouseBadge, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="8.5" FontWeight="Bold" Foreground="#EDEDF0" LetterSpacing="0.6"/>
@@ -1424,7 +1430,7 @@
           </Grid>
         </DockPanel>
 
-        <!-- в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ PROXY / CONFIRM / IN / REVIEW / AUDIT / SETTINGS в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ -->
+        <!-- PROXY / CONFIRM / IN / REVIEW / AUDIT / SETTINGS -->
         <ScrollViewer IsVisible="{Binding IsProxyPage}">
           <StackPanel Margin="30,24,30,30" Spacing="16" MaxWidth="1000">
             <StackPanel Spacing="3">
@@ -1432,25 +1438,28 @@
               <TextBlock Text="{Binding Ui.SubProxy}" Classes="sub"/>
             </StackPanel>
 
-            <!-- Status strip -->
+            <!-- Status & Save strip -->
             <Border Classes="glass" Padding="14">
-              <Grid ColumnDefinitions="*,*,*">
+              <Grid ColumnDefinitions="*,*,*,Auto">
                 <StackPanel Spacing="2">
                   <TextBlock Text="{Binding Ui.LabelAssigned}" Classes="label"/>
                   <TextBlock Text="{Binding ProxyStatus}" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="2" Margin="12,0">
                   <TextBlock Text="{Binding Ui.LabelLastCheck}" Classes="label"/>
-                  <TextBlock Text="{Binding ProxyCheckSummary, TargetNullValue=вЂ”}" FontSize="13" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding ProxyCheckSummary, TargetNullValue=—}" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Spacing="2">
                   <TextBlock Text="{Binding Ui.LabelFailedAcc}" Classes="label"/>
                   <TextBlock Text="{Binding ProxyFailedCount}" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
+                <Button Grid.Column="3" Classes="accent" Command="{Binding SaveAllProxiesCommand}" Padding="16,9" VerticalAlignment="Center">
+                  <TextBlock Text="Сохранить прокси" FontWeight="Bold" FontSize="13"/>
+                </Button>
               </Grid>
             </Border>
 
-            <!-- 1 В· Proxy list -->
+            <!-- 1 · Proxy list -->
             <Border Classes="glass" Padding="18">
               <StackPanel Spacing="12">
                 <Grid ColumnDefinitions="Auto,*">
@@ -1463,25 +1472,33 @@
                     <TextBlock Text="{Binding Ui.HintProxyPaste}" Classes="hint" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Grid>
-                <TextBox Classes="field" Text="{Binding ProxyBulkText}" AcceptsReturn="True" Height="120"
-                         Watermark="user:pass@ip:port&#x0a;ip:port&#x0a;вЂ¦"/>
+                <TextBox Classes="field" Text="{Binding ProxyBulkText, Mode=TwoWay}" AcceptsReturn="True" Height="120"
+                         Watermark="ip:port:user:pass&#x0a;user:pass@ip:port&#x0a;ip:port"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="ghost" Content="{Binding Ui.BtnLoadFile}" Command="{Binding ImportProxiesFromFileCommand}" Padding="12,8"/>
-                  <Button Classes="ghost" Content="{Binding Ui.BtnTestList}" Command="{Binding CheckProxyListCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,8"
-                          ToolTip.Tip="{Binding Ui.TipProxyPing}"/>
-                  <Button Classes="ghost" Content="{Binding Ui.BtnKeepOk}" Command="{Binding KeepOnlyWorkingProxiesInListCommand}" Padding="12,8"
-                          ToolTip.Tip="{Binding Ui.TipProxyKeepOk}"/>
+                  <Button Classes="ghost" Content="Из файла" Command="{Binding ImportProxiesFromFileCommand}" Padding="12,8"/>
+                  <Button Classes="ghost" Content="Проверить список" Command="{Binding CheckProxyListCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,8"
+                          ToolTip.Tip="Проверить все загруженные прокси в списке на доступность к Steam"/>
+                  <Button Classes="ghost" Content="Оставить только OK" Command="{Binding KeepOnlyWorkingProxiesInListCommand}" Padding="12,8"
+                          ToolTip.Tip="Удалить из списка прокси, которые выдали ошибку"/>
                 </StackPanel>
                 <Border Classes="divider"/>
-                <TextBlock Text="{Binding Ui.LabelApplyList}" Classes="label"/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="accent" Content="{Binding Ui.BtnApplyAll}" Command="{Binding DistributeProxiesToAllAccountsCommand}" Padding="14,9"
-                          ToolTip.Tip="{Binding Ui.TipProxyRoundRobin}"/>
-                  <Button Classes="primary" Content="{Binding Ui.BtnApplySelected}" Command="{Binding DistributeProxiesFromTextCommand}" Padding="14,9"
-                          ToolTip.Tip="{Binding Ui.TipProxySelectedOnly}"/>
-                  <Button Classes="ghost" Content="{Binding Ui.BtnTestSelected}" Command="{Binding CheckSelectedAccountProxiesCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,9"
-                          ToolTip.Tip="{Binding Ui.TipProxyTestAcc}"/>
-                </StackPanel>
+                <TextBlock Text="ПРИМЕНИТЬ ЗАГРУЖЕННЫЕ ПРОКСИ:" Classes="label"/>
+                <WrapPanel Orientation="Horizontal">
+                  <Button Classes="accent" Command="{Binding DistributeProxiesToAllAccountsCommand}" Padding="14,9" Margin="0,0,8,8"
+                          ToolTip.Tip="Загруженные прокси будут распределены по кругу (пулом) на все аккаунты">
+                    <TextBlock Text="Рандом / Пул на все аккаунты" FontWeight="Bold" FontSize="12"/>
+                  </Button>
+                  <Button Classes="accent" Command="{Binding DistributeProxiesOneToOneAllCommand}" Padding="14,9" Margin="0,0,8,8"
+                          ToolTip.Tip="Назначить ровно по 1 уникальному прокси на каждый аккаунт (1 прокси = 1 аккаунт)">
+                    <TextBlock Text="1 в 1 на все аккаунты (Фиксированно)" FontWeight="Bold" FontSize="12"/>
+                  </Button>
+                  <Button Classes="primary" Command="{Binding OpenProxyModalCommand}" Padding="14,9" Margin="0,0,8,8"
+                          ToolTip.Tip="Открыть диалоговое окно для точного выбора аккаунтов">
+                    <TextBlock Text="На выбранные аккаунты..." FontWeight="Bold" FontSize="12"/>
+                  </Button>
+                  <Button Classes="ghost" Content="Проверить аккаунты" Command="{Binding CheckSelectedAccountProxiesCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,9" Margin="0,0,8,8"
+                          ToolTip.Tip="Проверить работоспособность прокси на всех привязанных аккаунтах"/>
+                </WrapPanel>
               </StackPanel>
             </Border>
 
@@ -1499,11 +1516,12 @@
                   </StackPanel>
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBox Classes="field" Text="{Binding SingleProxyInput}" Watermark="user:pass@ip:port"/>
+                  <TextBox Classes="field" Text="{Binding SingleProxyInput}" Watermark="ip:port:user:pass или user:pass@ip:port"/>
                   <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                     <Button Classes="ghost" Content="{Binding Ui.BtnTest}" Command="{Binding CheckSingleProxyCommand}" IsEnabled="{Binding !IsBusy}" Padding="12,8"/>
-                    <Button Classes="accent" Content="{Binding Ui.BtnToSelected}" Command="{Binding ApplyProxyToSelectedCommand}" Padding="12,8"
-                            ToolTip.Tip="{Binding Ui.TipProxyWrite}"/>
+                    <Button Classes="accent" Command="{Binding OpenProxyModalCommand}" Padding="14,8" ToolTip.Tip="Открыть диалоговое окно выбора аккаунтов для привязки прокси">
+                      <TextBlock Text="Выбрать аккаунты и привязать..." FontWeight="Bold" FontSize="12"/>
+                    </Button>
                     <Button Classes="ghost" Content="{Binding Ui.BtnClearSelected}" Command="{Binding ClearProxySelectedCommand}" Padding="12,8"/>
                   </StackPanel>
                 </Grid>
@@ -1518,7 +1536,7 @@
               </StackPanel>
             </Border>
 
-            <!-- 3 В· By group -->
+            <!-- 3 · By group -->
             <Border Classes="glass" Padding="18">
               <StackPanel Spacing="14">
                 <Grid ColumnDefinitions="Auto,*,Auto">
@@ -1577,7 +1595,7 @@
                   <Grid ColumnDefinitions="*,*">
                     <StackPanel Spacing="7" Margin="0,0,10,0">
                       <TextBlock Text="{Binding DataContext.Ui.LabelOneProxy, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
-                      <TextBox Classes="field" Text="{Binding Proxy}" Watermark="user:pass@ip:port"/>
+                      <TextBox Classes="field" Text="{Binding Proxy}" Watermark="ip:port:user:pass или user:pass@ip:port"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="7" Margin="10,0,0,0">
                       <TextBlock Text="{Binding DataContext.Ui.LabelOrPool, RelativeSource={RelativeSource AncestorType=Window}}" Classes="label"/>
@@ -1615,6 +1633,46 @@
                           </StackPanel>
                           <TextBlock Grid.Column="1" Classes="hint" VerticalAlignment="Center"
                                      Text="{Binding Ms, StringFormat={}{0}ms}"/>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+
+            <!-- 4 · Accounts Proxy Overview Table -->
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                  <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="Текущее распределение прокси по аккаунтам" Classes="panel-title" TextWrapping="Wrap"/>
+                    <TextBlock Text="Каждый аккаунт четко указывает, какой именно прокси для него активен" Classes="hint" TextWrapping="Wrap"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Classes="accent" Command="{Binding SaveAllProxiesCommand}" Padding="14,8" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <TextBlock Text="Сохранить настройки" FontSize="12" FontWeight="Bold"/>
+                  </Button>
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding Accounts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:SteamAccount">
+                      <Border Classes="item" Padding="12,8" Margin="0,0,0,5">
+                        <Grid ColumnDefinitions="140,*,140,Auto">
+                          <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{Binding Login}" FontWeight="Bold" FontSize="13" Foreground="#FAFAFA"/>
+                            <Border Classes="chip" Padding="6,1" HorizontalAlignment="Left" Background="#1E1E22">
+                              <TextBlock Text="{Binding ActiveProxyType}" FontSize="10" Foreground="#0A84FF"/>
+                            </Border>
+                          </StackPanel>
+                          <TextBox Grid.Column="1" Text="{Binding Proxy, Mode=TwoWay}" Watermark="ip:port:user:pass или user:pass@ip:port (пусто = Default Proxy)" Height="30" FontSize="11" CornerRadius="6" Margin="8,0"/>
+                          <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1" Margin="4,0">
+                            <TextBlock Text="АКТИВНЫЙ PROXY" FontSize="9" Foreground="#8E8E93" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding ActiveProxyText}" FontSize="11" FontWeight="SemiBold" Foreground="#4CD964" TextTrimming="CharacterEllipsis"/>
+                          </StackPanel>
+                          <Button Grid.Column="3" Classes="ghost" Command="{Binding DataContext.CheckSelectedAccountProxiesCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="8,0,0,0" Padding="8,4" ToolTip.Tip="Проверить прокси для этого аккаунта">
+                            <TextBlock Text="Проверить" FontSize="11" Foreground="#0A84FF"/>
+                          </Button>
                         </Grid>
                       </Border>
                     </DataTemplate>
@@ -1984,6 +2042,43 @@
             </StackPanel>
             <Border Classes="glass" Padding="18">
               <StackPanel Spacing="11">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="Обновления приложения (GitHub)" Classes="panel-title"/>
+                    <TextBlock Text="{Binding AppVersion, StringFormat={}Текущая версия: v{0}}" Classes="hint"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Classes="ghost" Content="Проверить обновления" Command="{Binding CheckForUpdatesCommand}" IsEnabled="{Binding !IsCheckingUpdate}" Padding="12,8"/>
+                </Grid>
+
+                <TextBlock Text="{Binding UpdateStatusText}" Classes="hint" FontSize="11" IsVisible="{Binding UpdateStatusText, Converter={x:Static conv:AppConverters.StringNotEmpty}}"/>
+
+                <Border Background="#18181E" BorderBrush="#0A84FF" BorderThickness="1" CornerRadius="8" Padding="12" IsVisible="{Binding HasUpdate}">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding LatestVersion, StringFormat={}Доступна новая версия v{0}!}" FontWeight="Bold" Foreground="#FAFAFA" FontSize="13"/>
+                        <TextBlock Text="Нажмите «Скачать и обновить» для авто-установки или откройте GitHub" Classes="hint" FontSize="11"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Classes="accent" Command="{Binding AutoUpdateCommand}" IsEnabled="{Binding !IsDownloadingUpdate}" Padding="14,8">
+                          <TextBlock Text="Скачать и обновить" FontWeight="Bold" FontSize="12"/>
+                        </Button>
+                        <Button Classes="ghost" Command="{Binding OpenUpdateLinkCommand}" Padding="12,8">
+                          <TextBlock Text="GitHub" FontSize="12"/>
+                        </Button>
+                      </StackPanel>
+                    </Grid>
+                    <StackPanel Spacing="4" IsVisible="{Binding IsDownloadingUpdate}">
+                      <ProgressBar Value="{Binding UpdateProgressPercent}" Minimum="0" Maximum="100" Height="6"/>
+                      <TextBlock Text="{Binding UpdateProgressText}" Classes="hint" FontSize="11" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="glass" Padding="18">
+              <StackPanel Spacing="11">
                 <TextBlock Text="{Binding Ui.LabelApiKey}" Classes="panel-title"/>
                 <TextBlock Text="{Binding Ui.HintApiKey}" Classes="hint"/>
                 <TextBox Classes="field" Text="{Binding Settings.SteamWebApiKey}" Watermark="Paste key"/>
@@ -2080,6 +2175,138 @@
             <Button Classes="ghost" Content="{Binding Ui.BtnCancel}" Command="{Binding CloseImportCommand}"/>
             <Button Classes="accent" Content="{Binding Ui.BtnImport}" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsBusy}"/>
           </StackPanel>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <!-- Proxy Assignment Modal Overlay -->
+    <Panel Grid.RowSpan="3" ZIndex="62" IsVisible="{Binding ShowProxyModal}">
+      <Border Background="#D0050506" PointerPressed="OnOverlayDismissImport"/>
+      <Border Classes="modal" Width="680" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Назначение прокси на аккаунты" FontSize="16" FontWeight="Bold" Foreground="#FAFAFA"/>
+              <TextBlock Text="Отметьте нужные аккаунты и укажите для них прокси" Classes="hint"/>
+            </StackPanel>
+            <Button Grid.Column="1" Classes="icon" Command="{Binding CloseProxyModalCommand}">
+              <Path Classes="glyph" Data="{StaticResource IcoClose}" Width="11" Height="11" HorizontalAlignment="Center"/>
+            </Button>
+          </Grid>
+          <Border Classes="divider"/>
+
+          <Grid ColumnDefinitions="*,*">
+            <!-- Left Column: Account Selection -->
+            <StackPanel Spacing="10" Margin="0,0,10,0">
+              <TextBlock Text="1. Выберите аккаунты" Classes="label"/>
+              <TextBox Classes="field" Text="{Binding ProxyModalSearch, Mode=TwoWay}" Watermark="Поиск аккаунта по логину..." Height="32"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="ghost" Content="Выбрать все" Command="{Binding SelectAllProxyModalAccountsCommand}" Padding="10,4" FontSize="11"/>
+                <Button Classes="ghost" Content="Снять выбор" Command="{Binding DeselectAllProxyModalAccountsCommand}" Padding="10,4" FontSize="11"/>
+              </StackPanel>
+
+              <Border Background="#141418" CornerRadius="8" BorderBrush="#26262F" BorderThickness="1" Height="220" Padding="6">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding FilteredProxyModalAccounts}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:SteamAccount">
+                        <Border Classes="item" Padding="8,6" Margin="0,0,0,4">
+                          <Grid ColumnDefinitions="Auto,*,Auto">
+                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Margin="8,0" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Login}" FontWeight="Bold" FontSize="12" Foreground="#FAFAFA"/>
+                              <TextBlock Text="{Binding PersonaName}" Classes="hint" FontSize="10"/>
+                            </StackPanel>
+                            <Border Grid.Column="2" Classes="chip" Padding="5,2" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding ActiveProxyText}" FontSize="10" Foreground="#4CD964"/>
+                            </Border>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Border>
+            </StackPanel>
+
+            <!-- Right Column: Proxy Input & Mode -->
+            <StackPanel Grid.Column="1" Spacing="10" Margin="10,0,0,0">
+              <TextBlock Text="2. Введите прокси" Classes="label"/>
+              <TextBox Classes="field" Text="{Binding ProxyModalInput, Mode=TwoWay}" AcceptsReturn="True" Height="140"
+                       Watermark="ip:port:user:pass&#x0a;user:pass@ip:port&#x0a;..."/>
+              
+              <TextBlock Text="Режим привязки:" Classes="label" Margin="0,4,0,0"/>
+              <ComboBox SelectedIndex="{Binding ProxyModalMode, Mode=TwoWay}" HorizontalAlignment="Stretch" Height="32" CornerRadius="6">
+                <ComboBoxItem Content="Один прокси на ВСЕ отмеченные"/>
+                <ComboBoxItem Content="Список (распределить 1:1 по отмеченным)"/>
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+
+          <Border Classes="divider"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Classes="ghost" Content="Отмена" Command="{Binding CloseProxyModalCommand}" Padding="14,8"/>
+            <Button Classes="accent" Command="{Binding ApplyProxyModalCommand}" Padding="18,8">
+              <TextBlock Text="Применить и Сохранить" FontWeight="Bold" FontSize="12"/>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <!-- Proxy Shortage Modal Overlay -->
+    <Panel Grid.RowSpan="3" ZIndex="63" IsVisible="{Binding ShowProxyShortageModal}">
+      <Border Background="#D0050506" PointerPressed="OnOverlayDismissImport"/>
+      <Border Classes="modal" Width="540" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Border Classes="staticon" Width="36" Height="36" CornerRadius="10">
+              <Path Classes="glyph" Data="{StaticResource IcoProxy}" Width="18" Height="18" Fill="#0A84FF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Распределение прокси (1 в 1)" FontSize="16" FontWeight="Bold" Foreground="#FAFAFA"/>
+              <TextBlock Text="Доступных прокси меньше, чем загруженных аккаунтов" Classes="hint"/>
+            </StackPanel>
+            <Button Grid.Column="2" Classes="icon" Command="{Binding CloseProxyShortageModalCommand}">
+              <Path Classes="glyph" Data="{StaticResource IcoClose}" Width="11" Height="11" HorizontalAlignment="Center"/>
+            </Button>
+          </Grid>
+          <Border Classes="divider"/>
+
+          <Border Background="#18181E" BorderBrush="#2C2C35" BorderThickness="1" CornerRadius="8" Padding="14">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,*">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Загружено прокси" Classes="hint" FontSize="11"/>
+                  <TextBlock Text="{Binding ShortageProxyCount, StringFormat={}{0} шт.}" FontWeight="Bold" Foreground="#FAFAFA" FontSize="14"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock Text="Всего аккаунтов" Classes="hint" FontSize="11"/>
+                  <TextBlock Text="{Binding ShortageAccountCount, StringFormat={}{0} шт.}" FontWeight="Bold" Foreground="#FAFAFA" FontSize="14"/>
+                </StackPanel>
+              </Grid>
+              <TextBlock Text="Выберите способ распределения:" Classes="hint" FontSize="11" Margin="0,6,0,0"/>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Spacing="10" Margin="0,2,0,0">
+            <Button Classes="accent" Command="{Binding ResolveProxyShortageOnlyFirstCommand}" HorizontalAlignment="Stretch" Padding="14,12">
+              <StackPanel Spacing="3">
+                <TextBlock Text="Назначить 1 в 1 только на первые аккаунты" FontWeight="Bold" FontSize="13"/>
+                <TextBlock Text="Первые аккаунты получают свой прокси, на остальные ставится Дефолтный прокси" Classes="hint" FontSize="11" Foreground="#E1E1E6"/>
+              </StackPanel>
+            </Button>
+
+            <Button Classes="ghost" Command="{Binding ResolveProxyShortageRepeatRoundRobinCommand}" HorizontalAlignment="Stretch" Padding="14,12">
+              <StackPanel Spacing="3">
+                <TextBlock Text="Повторить прокси по кругу (Рандом / Пул)" FontWeight="Bold" FontSize="13"/>
+                <TextBlock Text="Использовать имеющийся список по кругу для всех аккаунтов" Classes="hint" FontSize="11"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <Border Classes="divider"/>
+          <Button Classes="ghost" Content="Отмена" Command="{Binding CloseProxyShortageModalCommand}" HorizontalAlignment="Right" Padding="16,7"/>
         </StackPanel>
       </Border>
     </Panel>

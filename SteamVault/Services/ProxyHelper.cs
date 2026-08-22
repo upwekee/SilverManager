@@ -41,26 +41,34 @@ public static class ProxyHelper
 
         try
         {
-            // user:pass@host:port (already normalized often)
-            if (norm.Contains('@') && !norm.Contains("://"))
+            string scheme = "http://";
+            string rest = norm;
+            if (norm.Contains("://"))
             {
-                var at = norm.LastIndexOf('@');
-                var cred = norm[..at];
-                var hostPart = norm[(at + 1)..];
+                var idx = norm.IndexOf("://", StringComparison.Ordinal);
+                scheme = norm[..(idx + 3)];
+                rest = norm[(idx + 3)..];
+            }
+
+            if (rest.Contains('@'))
+            {
+                var at = rest.LastIndexOf('@');
+                var cred = rest[..at];
+                var hostPart = rest[(at + 1)..];
                 var colon = cred.IndexOf(':');
-                var user = colon > 0 ? cred[..colon] : cred;
-                var pass = colon > 0 ? cred[(colon + 1)..] : "";
-                return new WebProxy($"http://{hostPart}")
+                var user = colon >= 0 ? cred[..colon] : cred;
+                var pass = colon >= 0 ? cred[(colon + 1)..] : "";
+
+                return new WebProxy($"{scheme}{hostPart}")
                 {
-                    Credentials = new NetworkCredential(user, pass),
+                    Credentials = new NetworkCredential(
+                        Uri.UnescapeDataString(user),
+                        Uri.UnescapeDataString(pass)),
                     BypassProxyOnLocal = false
                 };
             }
 
-            if (!norm.Contains("://"))
-                norm = "http://" + norm;
-
-            var uri = new Uri(norm);
+            var uri = new Uri($"{scheme}{rest}");
             var web = new WebProxy(uri) { BypassProxyOnLocal = false };
             if (!string.IsNullOrEmpty(uri.UserInfo))
             {
@@ -237,18 +245,22 @@ public static class ProxyHelper
         if ((s.StartsWith('"') && s.EndsWith('"')) || (s.StartsWith('\'') && s.EndsWith('\'')))
             s = s[1..^1].Trim();
 
-        // already with scheme
+        string scheme = "";
         if (s.Contains("://", StringComparison.Ordinal))
-            return s;
+        {
+            var idx = s.IndexOf("://", StringComparison.Ordinal);
+            scheme = s[..(idx + 3)];
+            s = s[(idx + 3)..];
+        }
 
         // user:pass@host:port
         if (s.Contains('@'))
-            return s;
+            return scheme + s;
 
         var parts = s.Split(':');
         // host:port
         if (parts.Length == 2 && int.TryParse(parts[1], out _))
-            return s;
+            return scheme + s;
 
         // host:port:user:pass  (very common export format)
         if (parts.Length >= 4 && int.TryParse(parts[1], out _))
@@ -257,7 +269,7 @@ public static class ProxyHelper
             var port = parts[1];
             var user = parts[2];
             var pass = string.Join(':', parts.Skip(3));
-            return $"{user}:{pass}@{host}:{port}";
+            return $"{scheme}{user}:{pass}@{host}:{port}";
         }
 
         // user:pass:host:port
@@ -270,11 +282,11 @@ public static class ProxyHelper
             {
                 var user = parts[0];
                 var pass = string.Join(':', parts.Skip(1).Take(parts.Length - 3));
-                return $"{user}:{pass}@{host}:{port}";
+                return $"{scheme}{user}:{pass}@{host}:{port}";
             }
         }
 
-        return s; // last chance — TryCreate may still accept
+        return scheme + s; // last chance — TryCreate may still accept
     }
 
     public static List<string> ParseLines(string? text)

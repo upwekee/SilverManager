@@ -11,7 +11,7 @@
          avares:// URIs key off AssemblyName, so they all carry the new name too. -->
     <RootNamespace>SteamVault</RootNamespace>
     <AssemblyName>SilverManager</AssemblyName>
-    <Version>1.4.0</Version>
+    <Version>1.6.0</Version>
     <Product>SilverManager</Product>
     <Description>Steam account manager for multi-account CS2 farming</Description>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
